@@ -1,10 +1,20 @@
-FROM python:3.9
+# Use NVIDIA's PyTorch container as the base image
+FROM nvcr.io/nvidia/pytorch:20.03-py3
 
-ENV VIDEO_APP app.py
+# Set the working directory
+WORKDIR /app
 
-COPY requirements.txt /requirements.txt
-RUN pip install --upgrade pip
+# Copy the requirements file to the container
+COPY requirements.txt .
+
+# Install the required packages
 RUN pip install -r requirements.txt
 
+# Copy the rest of the application files to the container
+COPY . .
+
+# Expose the port for the flask API
 EXPOSE 5000
-CMD [ "python3", "app.py" ]
+
+# Start the application
+CMD ["python", "app.py"]
