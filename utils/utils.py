@@ -24,5 +24,13 @@ def config_parse(txt):
             params[key] = value
     return params
 
-        
+def label_parser(string):
+    params = config_parse('LABELS')
+    return int(params[string])
+
+def one_hot_encode(label, num_classes):
+    one_hot = torch.zeros(num_classes)
+    one_hot[label] = 1
+    return one_hot
+
 

@@ -15,7 +15,7 @@ import pytorch_lightning as pl
 from torchvision import models
 import wandb
 import torchmetrics
-from scripts.encoder_lrcn import CNNModel as encoder
+from scripts.lrcn_encoder import CNNModel as encoder
 from scripts.dataset import CrimeActivityLRCNDataset
 import tensorrt as trt
     
@@ -58,8 +58,9 @@ class LRCN(pl.LightningModule):
         self.best_val_loss = 1e5
 
     def forward(self, x:torch.Tensor):
-        # split the input into windows
-        windows = torch.split(x, self.window_size, dim=1)
+        # video => (batch_size, frames, channels, height, width)
+        # split the video into frames        
+        windows = torch.split(x, dim=1)
 
         # initialize hidden state and cell state
         h = torch.zeros(1, x.size(0), self.hidden_size)
@@ -119,7 +120,7 @@ class LRCN(pl.LightningModule):
             self.save_model()
 
     def save_model(self):
-        #dummy input for a video of n frames, each frame of input_size, and batch size
+        #dummy input for a video of  batch size, n frames, each frame of input_size,
         dummy_input = torch.randn(1, self.input_size, 224, 224)
         torch.onnx.export(self, dummy_input, self.weights_save_path+'.onnx', verbose=True, input_names=['input'], output_names=['output'])
         torch.save(self.state_dict(), self.weights_save_pat + '.pt')
@@ -158,7 +159,6 @@ class LRCN(pl.LightningModule):
 
     def predict_epoch_end(self, outputs) -> None:
         return outputs
-    
     
 class LRCNLogger(pl.Callback):
     def __init__(self, model:LRCN, data:CrimeActivityLRCNDataset) -> None:
