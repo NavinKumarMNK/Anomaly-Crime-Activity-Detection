@@ -1,6 +1,6 @@
 # Anomaly Detection & Recognition System
 
-- Under Construction - 10% Completed
+- Under Construction - 50% Completed + Training
 
 ## Pytorch video recognition API with TensorRT support in a Docker container
 

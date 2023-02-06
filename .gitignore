@@ -3,3 +3,6 @@ Resources
 .env
 .ipynb_checkpoints
 __pycache__
+weights
+database
+lightning_logs

@@ -1,20 +1,26 @@
-# Use NVIDIA's PyTorch container as the base image
-FROM nvcr.io/nvidia/pytorch:20.03-py3
+FROM nvcr.io/nvidia/pytorch:22.11-py3
 
-# Set the working directory
 WORKDIR /app
 
-# Copy the requirements file to the container
-COPY requirements.txt .
+RUN apt-get update
 
-# Install the required packages
+RUN apt-get install -y zlib1g-dev libjpeg-dev build-essential libssl-dev libffi-dev
+
+RUN python3 -m pip install --upgrade pip
+
+COPY . .
 RUN pip install -r requirements.txt
 
-# Copy the rest of the application files to the container
-COPY . .
+RUN mkdir ./weights
+RUN mkdir ./temp
 
-# Expose the port for the flask API
-EXPOSE 5000
+WORKDIR /app/weights
+RUN gdown 'https://drive.google.com/u/0/uc?id=1qcgXiaAgdvSmvU3St9cJsguK6067KcjM&export=download' -O weights.zip
+RUN unzip weights.zip
+RUN rm weights.zip
 
-# Start the application
-CMD ["python", "app.py"]
+EXPOSE 5005
+
+WORKDIR /app
+
+CMD python3 run.py --source live

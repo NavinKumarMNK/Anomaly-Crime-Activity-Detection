@@ -1,1 +1,17 @@
-pytorch
+# Usage: pip install -r requirements.txt
+numpy
+opencv-python
+pillow
+pyYAML
+scipy
+tqdm
+gdown
+ipython 
+filterpy
+scikit-image
+uuid
+watchdog
+seaborn
+Tk
+pytorch_lightning
+flask
