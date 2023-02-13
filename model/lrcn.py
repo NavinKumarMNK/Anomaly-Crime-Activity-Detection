@@ -43,15 +43,11 @@ class LRCN(pl.LightningModule):
         for param in self.base_model.parameters():
             param.requires_grad = True
 
-        # LSTM on top of Base Model
+        
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, 
                     hidden_size=self.hidden_size, num_layers=num_layers, 
                     batch_first=True)
-        
-        # Time distributed LSTM
         self.td = nn.TimeDistributed(self.lstm)
-
-        # Dense & Softmax
         self.fc = nn.Linear(self.hidden_size, self.num_classes)
         self.out = nn.Softmax(dim=1)
 
@@ -66,15 +62,11 @@ class LRCN(pl.LightningModule):
         h = torch.zeros(1, x.size(0), self.hidden_size)
         c = torch.zeros(1, x.size(0), self.hidden_size)
 
-        # process each window
         outputs = []
-        #iterate over the windows
         for i, window in iter(windows):
-            # CNN feature extraction
             features = self.base_model(window)
             features = features.view(features.size(0), -1, self.encoder_output_size)
 
-            # LSTM
             output, (h, c) = self.td(features.unsqueeze(1), (h, c))
             outputs.append(output)
 

@@ -4,18 +4,21 @@ import pytorch_lightning
 import configparser
 import os
 
-root_folder = os.path.abspath('../')
+root_folder = os.path.abspath('./')
+
+def current_path():
+    return os.path.abspath('./')
 
 def device():
     return 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def absolute_path(self, txt):
+def absolute_path(txt):
         return os.path.join(root_folder, txt)
 
 # Congifuration file
-def config_parse(txt):
+def config_parse(path, txt):
     config = configparser.ConfigParser()
-    config.read('../model.cfg')
+    config.read(path+'/config.cfg')
     params={}
     for key, value in config[txt].items():
         if 'path' in key:

@@ -1,45 +1,54 @@
-"@author: 'NavinKumarMNK'"
-from flask import Flask, jsonify, request
-from flask_restful import Api, Resource
-import subprocess
-from werkzeug.utils import secure_filename
-import os
+# server.py
+'''
 
-# Flask app
+from flask_sockets import Sockets
+from flask import Flask, request
+import cv2
+import numpy as np
+
 app = Flask(__name__)
-api = Api(app)
+sockets = Sockets(app)
 
-# api resources /predict
-class Predict(Resource):
-    def get(self):
-        # run main.py & get images of faces, class of prediction
-        return jsonify({'message': 'Hello World!'})
+connected_cameras = {}
 
-    def post(self):
-        #recieve video file and sanitize it 
-        data = request.files['video']
-        filename = secure_filename(data.filename)
-        data.save(filename)
+@sockets.route('/video_feed')
+def video_feed(ws):
+    # store the IP address of the client in a dictionary
+    client_ip = request.remote_addr
+    connected_cameras[client_ip] = ws
 
-        result = subprocess.run(['python', 'main.py'], stdout=subprocess.PIPE, 
-                        stderr=subprocess.PIPE, shell=True, wait=True, 
-                        check=True, universal_newlines=True)
-        result = result.stdout
-        
-        #load images from the inference folder
-        # return the images and the class of prediction
-        images = []
-        for root, dirs, files in os.walk('path/to/folder'):
-            for file in files:
-                if file.endswith(".jpg") or file.endswith(".png"):
-                    images.append(file)
+    while True:
+        message = ws.receive()
+        if message is None:
+            break
 
-        return jsonify({'message': result,
-                        'images': images})
+        # display the message (frame) using cv2
+        frame = cv2.imdecode(np.frombuffer(message, np.uint8), cv2.IMREAD_COLOR)
+        cv2.imshow('frame', frame)
+        cv2.waitKey(1)
 
+ 
+if __name__ == '__main__':
+    from gevent.pywsgi import WSGIServer
+    from geventwebsocket.handler import WebSocketHandler
 
-# api endpoints
-api.add_resource(Predict, '/predict')
+    server = WSGIServer(('127.0.0.1', 8000), app, handler_class=WebSocketHandler)
+    server.serve_forever()
+
+'''
+import cv2
+def main():
+    # Get the video stream from the camera
+    video_capture = cv2.VideoCapture(0)
+    while True:
+        # Read the frames from the video stream
+        ret, frame = video_capture.read()
+        # Display the frames
+        cv2.imshow('frame', frame)
+        # Break the loop if 'q' is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    main()
