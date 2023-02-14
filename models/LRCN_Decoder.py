@@ -141,7 +141,7 @@ class LRCN(pl.LightningModule):
         # convert the model into tensorrt and optimize the inferecne usign torch_tensorrt
         self.tensorrt = trt(self, max_batch_size=1, max_workspace_size=1<<25,
                                     precision_mode="FP16", use_onnx=True)  
-        
+    
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         x, y = batch
         y_hat = self.tensorrt(x)

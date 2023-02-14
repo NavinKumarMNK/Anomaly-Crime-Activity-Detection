@@ -4,7 +4,7 @@ import pytorch_lightning
 import configparser
 import os
 
-root_folder = os.path.abspath('./')
+ROOT_PATH = '/home/mnk/MegNav/Projects/Crime-Activity-Detection-and-Suspect-Identification'
 
 def current_path():
     return os.path.abspath('./')
@@ -13,18 +13,24 @@ def device():
     return 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def absolute_path(txt):
-        return os.path.join(root_folder, txt)
+        return os.path.join(ROOT_PATH, txt)
 
 # Congifuration file
-def config_parse(path, txt):
+def config_parse(txt):
     config = configparser.ConfigParser()
-    config.read(path+'/config.cfg')
+    path = ROOT_PATH + '/config.cfg'
+    config.read(path)
     params={}
-    for key, value in config[txt].items():
-        if 'path' in key:
-            params[key] = absolute_path(value)
-        else:
-            params[key] = value
+    try:
+        for key, value in config[txt].items():
+            if 'path' in key:
+                params[key] = absolute_path(value)
+            else:
+                params[key] = value
+    except KeyError as e:
+        print("Invalid key: ", e)
+        print(path)    
+    
     return params
 
 def label_parser(string):
