@@ -5,8 +5,8 @@ import pytorch_lightning as pl
 import torch
 import cv2
 from utils import utils
-from scripts.preprocessing import VideoPreProcessing
-preprocessing = VideoPreProcessing()
+from models.preprocessing import ImagePreProcessing
+preprocessing = ImagePreProcessing()
 
 class CrimeActivityLRCNDataset(pl.LightningDataModule):
     def __init__(self, annotation_train:str, annotation_test:str, 

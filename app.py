@@ -1,4 +1,16 @@
-# server.py
+'@Author: "NavinKumarMNK"'
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import pytorch_lightning as pl
+from utils import utils
+#from models import ResNet_Encoder, LRCN_Decoder
+import cv2 
+import numpy as np
+from yoloface import YoloFace
+
+device = utils.device()
+
 '''
 
 from flask_sockets import Sockets
@@ -38,14 +50,44 @@ if __name__ == '__main__':
 '''
 import cv2
 def main():
-    # Get the video stream from the camera
+    '''
+    # LRCN Decoder
+    lrcn_params = utils.config_parse('./', 'LRCN_INFERENCE')
+    lrcn_decoder = LRCN_Decoder(lrcn_params)
+
+    # Resnet34 Encoder
+    resnet_params = utils.config_parse('./', 'RESNET_INFERENCE')
+    resnet_encoder = ResNet_Encoder(resnet_params)
+
+    # SVR Decoder
+    svr_params = utils.config_parse('./', 'SVR_INFERENCE')
+    svr_decoder = SVR_Decoder(svr_params)
+
+    # Face Detector
+    face_detector = YoloFace()
+    '''
+
+    
+
+
+
     video_capture = cv2.VideoCapture(0)
+    actual_fps = video_capture.get(cv2.CAP_PROP_FPS)
+
+    # Calculate the step size
+    step_size = int(actual_fps / 6)
+
+    # Initialize the frame counter
+    frame_counter = 0
     while True:
-        # Read the frames from the video stream
+        # set capture fps to 2
+        video_capture.set(cv2.CAP_PROP_FPS, 6)
         ret, frame = video_capture.read()
-        # Display the frames
-        cv2.imshow('frame', frame)
-        # Break the loop if 'q' is pressed
+        frame_counter += 1
+        if frame_counter % step_size == 0:
+            cv2.imshow("Frame", frame)
+
+        #cv2.imshow('frame', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

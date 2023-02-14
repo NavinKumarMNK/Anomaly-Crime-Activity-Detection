@@ -6,7 +6,6 @@ if os.path.abspath('../') not in sys.path:
     sys.path.append(os.path.abspath('../'))
 import utils.utils as utils
 
-
 # Import the required modules
 import torch
 import torch.nn as nn
@@ -15,8 +14,7 @@ import pytorch_lightning as pl
 from torchvision import models
 import wandb
 import torchmetrics
-from scripts.lrcn_encoder import CNNModel as encoder
-from scripts.dataset import CrimeActivityLRCNDataset
+from models.Dataset import CrimeActivityLRCNDataset
 import tensorrt as trt
     
 # LRCN model
