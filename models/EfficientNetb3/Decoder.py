@@ -18,11 +18,41 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchvision.models import efficientnet_b3
 
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
+        self.fc = nn.Linear(1536, 1536*4*4)
+        self.model = nn.Sequential(
+            nn.ConvTranspose2d(1536, 1024, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(),
+            nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x = self.fc(x)
+        x = x.view(-1, 1536, 4, 4)
+        return self.model(x)
+
 class EfficientNetb3Decoder(pl.LightningModule):
     def __init__(self):
         super(EfficientNetb3Decoder, self).__init__()
-        self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt')
-
+        self.model = Decoder()
+        self.model.load_state_dict(torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt'))
+    
     def forward(self, x):
         x = x.view(-1, 1536, 1, 1)
         return self.model(x)

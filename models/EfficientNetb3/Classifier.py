@@ -15,11 +15,29 @@ import wandb
 import torch.nn as nn
 import pytorch_lightning as pl
 
+# classifier
+class Classifier(nn.Module):
+    def __init__(self, no_of_classes):
+        super(Classifier, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(1536, 512),
+            nn.ReLU(),
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, no_of_classes),
+            nn.Softmax(dim=1)
+        )
+    
+    def forward(self, x):
+        return self.model(x)
+
 class EfficientNetb3Classifier(pl.LightningModule):
     def __init__(self):
         super(EfficientNetb3Classifier, self).__init__()
-        self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Classifier.pt')
-
+        params = utils.config_parse('GENERAL')
+        self.no_of_classes = int(params['no_of_classes'])
+        self.model = Classifier(self.no_of_classes)
+        self.model.load_state_dict(torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Classifier.pt'))
 
     def forward(self, x):
         x = x.view(-1, 1536)

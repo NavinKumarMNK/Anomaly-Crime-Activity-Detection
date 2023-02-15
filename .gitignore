@@ -6,3 +6,5 @@ __pycache__
 weights
 database
 lightning_logs
+.vscode
+wandb

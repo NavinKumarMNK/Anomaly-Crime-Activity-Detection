@@ -23,8 +23,17 @@ def config_parse(txt):
     params={}
     try:
         for key, value in config[txt].items():
-            if 'path' in key:
+            if 'path' in key.split('_'):
                 params[key] = absolute_path(value)
+            elif value == 'True' or value== 'False':
+                params[key] = True if value == 'True' else False
+            elif value.isdigit():
+                params[key] = int(value)
+            elif '.' in value:
+                try:
+                    params[key] = float(value)
+                except ValueError:
+                    params[key] = value
             else:
                 params[key] = value
     except KeyError as e:
@@ -35,6 +44,7 @@ def config_parse(txt):
 
 def label_parser(string):
     params = config_parse('LABELS')
+    string = string.lower()
     return int(params[string])
 
 def one_hot_encode(label, num_classes):

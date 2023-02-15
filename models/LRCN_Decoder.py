@@ -16,7 +16,7 @@ import wandb
 import torchmetrics
 from models.Dataset import CrimeActivityLRCNDataset
 import tensorrt as trt
-    
+from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
 # LRCN model
 class LRCN(pl.LightningModule):
     def __init__(self, input_size:int, encoder_output_size:int, hidden_size:int, 
@@ -33,19 +33,15 @@ class LRCN(pl.LightningModule):
         self.weights_save_path = weights_save_path
 
         # Resnet34 for CNN feature extraction
-        if (pretrained == True):
-            self.base_model = models.resnet34(pretrained=True)
-        else:
-            self.base_model = encoder
+        self.base_model = Encoder()
         # Support the training of the base model : Fine Tuning
         for param in self.base_model.parameters():
-            param.requires_grad = True
+            param.requires_grad = False
 
-        
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, 
                     hidden_size=self.hidden_size, num_layers=num_layers, 
                     batch_first=True)
-        self.td = nn.TimeDistributed(self.lstm)
+        self.td = nn.utils.rnn.PackedSequence(self.lstm, batch_first=True)
         self.fc = nn.Linear(self.hidden_size, self.num_classes)
         self.out = nn.Softmax(dim=1)
 

@@ -17,8 +17,8 @@ import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
 from torchvision.models import efficientnet_b3
-from Encoder import EfficientNetb3Encoder
-from Decoder import EfficientNetb3Decoder
+from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from models.EfficientNetb3.Decoder import EfficientNetb3Decoder
 
 class AutoEncoder(pl.LightningModule):
     def __init__(self, 
@@ -68,4 +68,4 @@ if __name__ == '__main__':
     print(model)
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)
-        
+
