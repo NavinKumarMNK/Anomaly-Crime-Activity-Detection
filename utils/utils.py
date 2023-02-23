@@ -52,4 +52,46 @@ def one_hot_encode(label, num_classes):
     one_hot[label] = 1
     return one_hot
 
+def dataset_image_autoencoder():
+    file_path = ROOT_PATH + "/data/"
+    batch_size = config_parse('AUTOENCODER_DATASET')['batch_size']
+    import cv2
+    annotation = open(file_path+"anomaly_train.txt", 'r').read().splitlines()
+    with open(file_path+"auto_encoder.txt", "w+") as f:
+        for video_path in annotation:
+            video = cv2.VideoCapture(file_path + video_path)
+            count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            count = int(count / batch_size) + 1
+            i = 0
+            while i != count:
+                i+=1
+                str = f"{video_path} \n"
+                f.write(str)
+    return f"{file_path}auto_encoder.txt"
 
+def dataset_image_encoderclassifer():
+    file_path = ROOT_PATH + "/data/"
+    batch_size = config_parse('EFFICIENTNET_CLASSIFIER')['batch_size']
+    import cv2
+    annotation = open(file_path+"anomaly_test.txt", 'r').read().splitlines()
+    with open(file_path+"encoder_dataset.txt", "a+") as f:
+        for video_path in annotation:
+            list = video_path.split("  ")
+            print(list)
+            a, b = list[0], list[1] 
+            str = f"{b}/{a} {list[1]} {list[2]} {list[3]} {list[4]} {list[5]}\n"
+            video_path = f"{b}/{a}"
+            video = cv2.VideoCapture(file_path + video_path)
+            count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            count = int(count / batch_size) + 1
+            i = 0
+            while i != count:
+                i+=1
+                f.write(str)
+            print("Written One Video")
+            break
+    return f"{file_path}encoder_dataset.txt"
+
+
+if __name__ == '__main__':
+    dataset_image_encoderclassifer()

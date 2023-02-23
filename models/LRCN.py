@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 from torchvision import models
 import wandb
 import torchmetrics
-from models.Dataset import CrimeActivityLRCNDataset
+from models.LRCNDataset import CrimeActivityLRCNDataset
 import tensorrt as trt
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
 # LRCN model
@@ -41,7 +41,7 @@ class LRCN(pl.LightningModule):
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, 
                     hidden_size=self.hidden_size, num_layers=num_layers, 
                     batch_first=True)
-        self.td = nn.utils.rnn.PackedSequence(self.lstm, batch_first=True)
+        self.td = nn.utils.rnn.PackedSequence(self.lstm)
         self.fc = nn.Linear(self.hidden_size, self.num_classes)
         self.out = nn.Softmax(dim=1)
 
@@ -175,15 +175,15 @@ class LRCNLogger(pl.Callback):
 
 
 if __name__ == '__main__': 
-    wandb.init()
-    logger = pl.loggers.WandbLogger(project="CrimeDetection-LRCN", entity="mnk")
+    #wandb.init()
+    #logger = pl.loggers.WandbLogger(project="CrimeDetection-LRCN", entity="mnk")
     trainer_params = utils.config_parse('LRCN_TRAIN')
-    trainer = pl.Trainer(**trainer_params, logger=logger,    
+    trainer = pl.Trainer(**trainer_params, #logger=logger,    
                         )
     model_params = utils.config_parse('LRCN_MODEL')
     model = LRCN(**model_params)
     trainer.fit(model)
     data = CrimeActivityLRCNDataset()
     trainer.test(datamodule=data)
-    wandb.finish()
+    #wandb.finish()
     

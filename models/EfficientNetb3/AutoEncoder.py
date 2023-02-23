@@ -63,9 +63,51 @@ class AutoEncoder(pl.LightningModule):
         y_hat = self(x)
         return y_hat
     
+    def training_epoch_end(self, outputs) -> None:
+        torch.save(self.encoder.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
+        torch.save(self.decoder.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3Decoder.pt')
+
 if __name__ == '__main__':
+    #from pytorch_lightning.loggers import WandbLogger
+    #logger = WandbLogger(project='AutoEncoder', name='EfficientNetb3')
+
+    #import wandb
+    #wandb.init()
+    from pytorch_lightning import Trainer
+    from models.EfficientNetb3.Dataset.AutoEncoderDataset import AutoEncoderDataset
+    from torch.utils.data import DataLoader
+
+    dataset_params = utils.config_parse('AUTOENCODER_DATASET')
+    dataset = AutoEncoderDataset(**dataset_params)
+
+    train_dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=True)
+    val_dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=True)
+    test_dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=True)
+
+    
+    from pytorch_lightning.callbacks import ModelSummary
+    from pytorch_lightning.callbacks.progress import TQDMProgressBar
+    from pytorch_lightning.callbacks import ModelCheckpoint
+    from pytorch_lightning.callbacks import EarlyStopping
+    from pytorch_lightning.callbacks.device_stats_monitor import DeviceStatsMonitor
+
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10)
+    device_monitor = DeviceStatsMonitor()
+    checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/')
+    model_summary = ModelSummary(max_depth=3)
+    refresh_rate = TQDMProgressBar(refresh_rate=10)
+
+    callbacks = [
+        model_summary,
+        refresh_rate,
+        checkpoint_callback,
+        early_stopping,
+        device_monitor
+    ]
+
     model = AutoEncoder()
-    print(model)
-    total_params = sum(p.numel() for p in model.parameters())
-    print(total_params)
+    autoencoder_params = utils.config_parse('AUTOENCODER_TRAIN')
+    print(autoencoder_params)
+    trainer = Trainer(**autoencoder_params, callbacks=callbacks) #logger=logger)
+    trainer.fit(model, train_dataloader, val_dataloader,)
 

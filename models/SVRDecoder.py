@@ -58,13 +58,13 @@ if __name__ == '__main__':
     y = df.iloc[:, 1024].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
-    trainer_params = utils.config_parser("../", 'LRCN_TRAIN') 
+    trainer_params = utils.config_parser("../", 'SVR_DECODER') 
     svr = SVRDecoder(**trainer_params)
     svr.fit(X_train, y_train)
-    svr.save(utils.absolute_path('../models/weights'))
+    svr.save(utils.absolute_path('../models/weights/svr_model.pkl'))
     
     # Load the model
-    svr.load(utils.absolute_path('../models/weights'))
+    svr.load(utils.absolute_path('../models/weights/svr_model.pkl'))
     y_pred = svr.predict(X_test)
     
     # Evaluate

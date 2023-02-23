@@ -54,7 +54,6 @@ class EfficientNetb3Decoder(pl.LightningModule):
         self.model.load_state_dict(torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt'))
     
     def forward(self, x):
-        x = x.view(-1, 1536, 1, 1)
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
