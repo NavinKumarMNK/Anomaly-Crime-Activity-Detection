@@ -4,29 +4,76 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from utils import utils
-#from models import ResNet_Encoder, LRCN_Decoder
 import cv2 
 import numpy as np
-from yoloface import YoloFace
+from scripts.main import Main
 
 device = utils.device()
 import asyncio
 import websockets
+app_params = utils.config_parse('APP')
+
+from models.SVRDecoder import SVRDecoder
+from models.LRCN import LRCN
+from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from yoloface import YoloFace as yf
+
+#encoder = EfficientNetb3Encoder().to(device)
+#anomaly_detector = SVRDecoder().to(device)
+#face = yf()
 
 async def handle_websocket(websocket, path):
     print(f"New connection from {websocket.remote_address}")
+    #lrcn = LRCN().to(device)
     try:
+        count =0 
+        neg_count=0
+        flag = 0
+        action = None
         while True:
             data = await websocket.recv()
             img_bytes = bytearray(data)
             npimg = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+            '''
+            embeddings = encoder(npimg)
+            res = anomaly_detector(res)
+            if (res > app_params['ANOMALY_THRESHOLD']):
+                count+=1
+            else :
+                count = 0
             
-            # Display received image
-            cv2.imshow("Server Side", npimg)
+            if (res < app_params['ANOMALY_THRESHOLD'] / 2):
+                neg_count -= 1    
+            
+            if (neg_count < -10):
+                flag = 0
+                neg_count = 0   
+            
+            if(count > 10):
+                print("Anomaly Detected")
+                flag = 1
+                count = 0
+
+            if (flag == 1):
+                action = lrnc(npimg)
+
+            if (action == -1):
+                flag = 0
+                count = 0
+                neg_count = 0
+            else:
+                print("Action : ", action)
+                if(app_params['FACE_DETECTOR'] == True):
+                    result = face.detect(npimg, recognition = utils.config_parse('FACE_RECOGNIZER'))
+                    print(result)
+            '''
+
+            cv2.imshow("APP", npimg)
             cv2.waitKey(1)
     
     except websockets.exceptions.ConnectionClosed:
         print(f"Connection closed from {websocket.remote_address}")
+        cv2.destroyWindow("APP")
 
 async def main():
     async with websockets.serve(handle_websocket, "localhost", 8765):
@@ -36,49 +83,3 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-'''
-import cv2
-def main():
-    
-    # LRCN Decoder
-    lrcn_params = utils.config_parse('./', 'LRCN_INFERENCE')
-    lrcn_decoder = LRCN_Decoder(lrcn_params)
-
-    # Resnet34 Encoder
-    resnet_params = utils.config_parse('./', 'RESNET_INFERENCE')
-    resnet_encoder = ResNet_Encoder(resnet_params)
-
-    # SVR Decoder
-    svr_params = utils.config_parse('./', 'SVR_INFERENCE')
-    svr_decoder = SVR_Decoder(svr_params)
-
-    # Face Detector
-    face_detector = YoloFace()
-
-    
-
-
-
-    video_capture = cv2.VideoCapture(0)
-    actual_fps = video_capture.get(cv2.CAP_PROP_FPS)
-
-    # Calculate the step size
-    step_size = int(actual_fps / 6)
-
-    # Initialize the frame counter
-    frame_counter = 0
-    while True:
-        # set capture fps to 2
-        video_capture.set(cv2.CAP_PROP_FPS, 6)
-        ret, frame = video_capture.read()
-        frame_counter += 1
-        if frame_counter % step_size == 0:
-            cv2.imshow("Frame", frame)
-
-        #cv2.imshow('frame', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-if __name__ == '__main__':
-    main()
-'''

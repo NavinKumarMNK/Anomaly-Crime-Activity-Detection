@@ -7,14 +7,17 @@ async def send_frames_to_websocket():
     async with websockets.connect("ws://localhost:8765") as websocket:
         print(f"Connected to websocket server at {websocket.remote_address}")
         cap = cv2.VideoCapture(0)
+        frame_count = 0
         try:
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     break
-                # Convert the frame to bytes and send it to the websocket server.
-                frame_bytes = cv2.imencode(".jpg", frame)[1].tobytes()
-                await websocket.send(frame_bytes)
+
+                if frame_count % 5 == 0:
+                    frame_bytes = cv2.imencode(".jpg", frame)[1].tobytes()
+                    await websocket.send(frame_bytes)
+                frame_count += 1        
 
         finally:
             cap.release()
