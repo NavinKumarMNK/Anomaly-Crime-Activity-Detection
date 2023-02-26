@@ -10,47 +10,36 @@ import numpy as np
 from yoloface import YoloFace
 
 device = utils.device()
+import asyncio
+import websockets
 
-'''
+async def handle_websocket(websocket, path):
+    print(f"New connection from {websocket.remote_address}")
+    try:
+        while True:
+            data = await websocket.recv()
+            img_bytes = bytearray(data)
+            npimg = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+            
+            # Display received image
+            cv2.imshow("Server Side", npimg)
+            cv2.waitKey(1)
+    
+    except websockets.exceptions.ConnectionClosed:
+        print(f"Connection closed from {websocket.remote_address}")
 
-from flask_sockets import Sockets
-from flask import Flask, request
-import cv2
-import numpy as np
+async def main():
+    async with websockets.serve(handle_websocket, "localhost", 8765):
+        print("Websocket server started.")
+        await asyncio.Future()
 
-app = Flask(__name__)
-sockets = Sockets(app)
-
-connected_cameras = {}
-
-@sockets.route('/video_feed')
-def video_feed(ws):
-    # store the IP address of the client in a dictionary
-    client_ip = request.remote_addr
-    connected_cameras[client_ip] = ws
-
-    while True:
-        message = ws.receive()
-        if message is None:
-            break
-
-        # display the message (frame) using cv2
-        frame = cv2.imdecode(np.frombuffer(message, np.uint8), cv2.IMREAD_COLOR)
-        cv2.imshow('frame', frame)
-        cv2.waitKey(1)
-
- 
-if __name__ == '__main__':
-    from gevent.pywsgi import WSGIServer
-    from geventwebsocket.handler import WebSocketHandler
-
-    server = WSGIServer(('127.0.0.1', 8000), app, handler_class=WebSocketHandler)
-    server.serve_forever()
+if __name__ == "__main__":
+    asyncio.run(main())
 
 '''
 import cv2
 def main():
-    '''
+    
     # LRCN Decoder
     lrcn_params = utils.config_parse('./', 'LRCN_INFERENCE')
     lrcn_decoder = LRCN_Decoder(lrcn_params)
@@ -65,7 +54,6 @@ def main():
 
     # Face Detector
     face_detector = YoloFace()
-    '''
 
     
 
@@ -91,6 +79,6 @@ def main():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-
 if __name__ == '__main__':
     main()
+'''

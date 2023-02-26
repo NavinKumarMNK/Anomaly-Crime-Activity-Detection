@@ -44,7 +44,6 @@ class LRCN(pl.LightningModule):
         self.td = nn.utils.rnn.PackedSequence(self.lstm)
         self.fc = nn.Linear(self.hidden_size, self.num_classes)
         self.out = nn.Softmax(dim=1)
-
         self.best_val_loss = 1e5
 
     def forward(self, x:torch.Tensor):
