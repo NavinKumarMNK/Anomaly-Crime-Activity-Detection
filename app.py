@@ -14,7 +14,7 @@ import websockets
 app_params = utils.config_parse('APP')
 
 from models.SVRDecoder import SVRDecoder
-from models.LRCN import LRCN
+from models.LSTM import LRCN
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
 from yoloface import YoloFace as yf
 

@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 from torchvision import models
 import wandb
 import torchmetrics
-from models.LRCNDataset import CrimeActivityLRCNDataset
+from models.LSTMDataset import CrimeActivityLRCNDataset
 import tensorrt as trt
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
 # LRCN model

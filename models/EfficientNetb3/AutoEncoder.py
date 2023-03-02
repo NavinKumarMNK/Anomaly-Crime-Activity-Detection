@@ -24,6 +24,8 @@ class AutoEncoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(AutoEncoder, self).__init__()
+        self.example_input_array = torch.zeros(1, 3, 256, 256)
+        self.save_hyperparameters()
         self.encoder = EfficientNetb3Encoder()
         self.decoder = EfficientNetb3Decoder()
 
@@ -62,7 +64,7 @@ class AutoEncoder(pl.LightningModule):
             self.save_model()
 
     def save_model(self):
-        dummy_input = torch.randn(1, self.input_size, 224, 224)
+        dummy_input = torch.randn(1, self.input_size, 256, 256)
         torch.onnx.export(self, dummy_input, self.weights_save_path+'.onnx', verbose=True, input_names=['input'], output_names=['output'])
         torch.save(self.state_dict(), self.weights_save_pat + '.pt')
         artifact = wandb.Artifact('lrcn_model.cpkt', type='model')
