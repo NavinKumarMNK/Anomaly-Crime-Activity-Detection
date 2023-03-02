@@ -8,7 +8,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from models.EfficientNetb3 import AutoEncoder
-from models.EfficientNetb3.Dataset import AutoEncoderDataset
+from models import AutoEncoderDataset
 
 from ray.util.sgd import DistributedDataParallel
 from ray.train.torch import DistributedDataParallelPlugin, TorchTrainer
@@ -35,8 +35,6 @@ def train(config, checkpoint_dir=None, data_dir=None):
 
     # Train the module using the PyTorch Lightning trainer
     trainer.fit(module, train_data)
-
-
 
 
 # Define your configuration dictionary

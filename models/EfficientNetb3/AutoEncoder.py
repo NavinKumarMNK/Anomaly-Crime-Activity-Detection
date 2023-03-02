@@ -135,7 +135,7 @@ if __name__ == '__main__':
     import wandb
     wandb.init()
     from pytorch_lightning import Trainer
-    from models.EfficientNetb3.Dataset.AutoEncoderDataset import AutoEncoderDataset
+    from models.AutoEncoderDataset import AutoEncoderDataset
     from torch.utils.data import DataLoader
 
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')

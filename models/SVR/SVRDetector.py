@@ -13,7 +13,7 @@ import joblib
 import numpy as np
 import wandb
 
-class SVRDecoder():
+class SVRDetector():
     def __init__(self, input_size, kernel='rbf', C=1.0, gamma='scale'):
         self.input_size = input_size
         self.scaler  = StandardScaler()
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
     trainer_params = utils.config_parser("../", 'SVR_DECODER') 
-    svr = SVRDecoder(**trainer_params)
+    svr = SVRDetector(**trainer_params)
     svr.fit(X_train, y_train)
     svr.save(utils.absolute_path('../models/weights/svr_model.pkl'))
     

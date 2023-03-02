@@ -23,6 +23,7 @@ class EfficientNetb3Encoder(pl.LightningModule):
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetb3Encoder'
         self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1536)
+        self.save_hyperparameters()
         self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
 
     def forward(self, x):
@@ -78,11 +79,6 @@ class EfficientNetb3Encoder(pl.LightningModule):
             engine = builder.build_engine(network, config)
             with open(self.file_path+'.trt', 'wb') as f:
                 f.write(engine.serialize())   
-
-    def prediction_step(self, batch, batch_idx, dataloader_idx=None):
-        x, y = batch
-        y_hat = self(x)
-        return y_hat
 
     def to_onnx(self, **kwargs):
         return super().to_onnx(self.file_path+'.onnx', self.example_input_array, **kwargs)
