@@ -8,12 +8,12 @@ from utils import utils
 from models.preprocessing import ImagePreProcessing
 preprocessing = ImagePreProcessing()
 
-class CrimeActivityLSTMDataset(pl.LightningDataModule):
+class LSTMDataset(pl.LightningDataModule):
     def __init__(self, annotation_train:str, annotation_test:str, 
                         data_dir_path:str, num_workers:int,
                         sample_rate:int, batch_size:int
                         ):
-        super(CrimeActivityLSTMDataset, self).__init__() 
+        super(LSTMDataset, self).__init__() 
         self.data_path = data_dir_path
         self.annotation_train = open(self.data_path + annotation_train, 'r').read().splitlines()
         self.annotation_test = open(self.data_path + annotation_test, 'r').read().splitlines()
@@ -47,7 +47,6 @@ class CrimeActivityLSTMDataset(pl.LightningDataModule):
             video = preprocessing.augumentation(video)
 
             return video, label
-
 
         else:
             annotation = self.annotation_test[index]
@@ -177,7 +176,7 @@ class TemporalAnomalyDataset():
 
 
 if __name__ == "__main__":
-    data = CrimeActivityLRCNDataset(**utils.config_parse(
+    data = LSTMDataset(**utils.config_parse(
                 'CRIME_ACTIVITY_DATASET'))
     data.setup()
     print(data)    

@@ -17,7 +17,7 @@ import tensorrt as trt
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
 # LRCN model
 
-class Decoder(pl.LightningModule):
+class LSTMDecoder(pl.LightningModule):
     def __init__(self, encoder_output_size:int=1536, hidden_size:int=768, 
                     num_layers:int=3, num_classes:int=14) -> None:
         super().__init__()
@@ -109,7 +109,7 @@ class Decoder(pl.LightningModule):
         return super().to_torchscript(self.file_path+'_script.pt', method, self.example_input_array, **kwargs)
 
 if __name__ == '__main__': 
-    model = Decoder()
+    model = LSTMDecoder()
     print(model)
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)

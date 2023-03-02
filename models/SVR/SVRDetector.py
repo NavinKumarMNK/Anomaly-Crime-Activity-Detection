@@ -12,7 +12,7 @@ from sklearn.svm import SVR
 import joblib
 import numpy as np
 import wandb
-
+import pandas
 class SVRDetector():
     def __init__(self, input_size, kernel='rbf', C=1.0, gamma='scale'):
         self.input_size = input_size
@@ -50,24 +50,14 @@ class SVRDetector():
         wandb.log({'score': score, 'frame_number': frame_number})
 
 if __name__ == '__main__':
-    import pandas 
-    df = pandas.read_csv(utils.absolute_path('../data/svm.csv'))
-    from sklearn.model_selection import train_test_split
+    import pandas
+    import numpy as np
     
-    X = df.iloc[:, 0:1024].values
-    y = df.iloc[:, 1024].values
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+    data = np.load(utils.ROOT_PATH + '/data/svr.npy')
+    X = data[:, 0:1536]
+    y = data[:, 1536]
 
-    trainer_params = utils.config_parser("../", 'SVR_DECODER') 
+    trainer_params = utils.config_parser("../", 'SVR_DECODER')
     svr = SVRDetector(**trainer_params)
-    svr.fit(X_train, y_train)
-    svr.save(utils.absolute_path('../models/weights/svr_model.pkl'))
-    
-    # Load the model
-    svr.load(utils.absolute_path('../models/weights/svr_model.pkl'))
-    y_pred = svr.predict(X_test)
-    
-    # Evaluate
-    from sklearn.metrics import mean_squared_error
-    print('MSE: ', mean_squared_error(y_test, y_pred))
-
+    svr.fit(X, y)
+    svr.save(utils.ROOT_PATH + '/weights')

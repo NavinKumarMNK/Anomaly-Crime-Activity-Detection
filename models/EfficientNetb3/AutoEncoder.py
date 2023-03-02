@@ -19,7 +19,8 @@ import pytorch_lightning as pl
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
 from models.EfficientNetb3.Decoder import EfficientNetb3Decoder
 import ray_lightning as rl
-
+from models.EfficientNetb3.AutoEncoderDataset import AutoEncoderDataset
+    
 class AutoEncoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
@@ -97,7 +98,7 @@ class AutoEncoder(pl.LightningModule):
         return y_hat
     
     def training_epoch_end(self, outputs) -> None:
-        torch.save(self.encoder.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
+        torch.save(self.encoder, utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
         torch.save(self.decoder.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3Decoder.pt')
 
 class LRCNLogger(pl.Callback):
@@ -135,7 +136,6 @@ if __name__ == '__main__':
     import wandb
     wandb.init()
     from pytorch_lightning import Trainer
-    from models.AutoEncoderDataset import AutoEncoderDataset
     from torch.utils.data import DataLoader
 
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     from pytorch_lightning.callbacks import EarlyStopping
     from pytorch_lightning.callbacks.device_stats_monitor import DeviceStatsMonitor
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=10)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=5)
     device_monitor = DeviceStatsMonitor()
     checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/')
     model_summary = ModelSummary(max_depth=3)
@@ -186,5 +186,5 @@ if __name__ == '__main__':
                     strategy=strategy)
     trainer.fit(model, train_dataloader, val_dataloader)
 
-    
+    model.encoder.finalize()    
 

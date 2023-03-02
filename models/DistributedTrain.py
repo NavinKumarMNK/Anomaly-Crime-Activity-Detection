@@ -8,7 +8,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from models.EfficientNetb3 import AutoEncoder
-from models import AutoEncoderDataset
+from models.EfficientNetb3 import AutoEncoderDataset
 
 from ray.util.sgd import DistributedDataParallel
 from ray.train.torch import DistributedDataParallelPlugin, TorchTrainer
