@@ -18,6 +18,53 @@ from models.LRCNDataset import CrimeActivityLRCNDataset
 import tensorrt as trt
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
 # LRCN model
+
+class Decoder(pl.LightningModule):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+        
+
+    def forward(self, x):
+        # x.shape: (batch_size, seq_len, input_size)
+        batch_size = x.shape[0]
+        if self.hidden is None:
+            self.hidden = self.init_hidden(batch_size=batch_size)
+        
+        for i in range(x.shape[1]):
+            out, self.hidden = self.lstm(x[:, i:i+1, :], self.hidden)
+        
+        out = self.fc(out[:, -1, :])
+        return out
+    
+    def init_hidden(self, batch_size):
+        # initialize hidden state and cell state to zeros
+        h = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device)
+        c = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(self.device)
+        return (h, c)
+    
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        self.log('train_loss', loss)
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        acc = (y_hat.argmax(dim=1) == y).float().mean()
+        self.log('val_loss', loss, prog_bar=True)
+        self.log('val_acc', acc, prog_bar=True)
+    
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
+
 class LRCN(pl.LightningModule):
     def __init__(self, input_size:int, encoder_output_size:int, hidden_size:int, 
                     num_layers:int, num_classes:int, weights_save_path,
@@ -119,7 +166,6 @@ class LRCN(pl.LightningModule):
         loss = F.cross_entropy(y_hat, y)
         self.log('test/loss', loss)
         self.log('test/acc', torchmetrics.functional.accuracy(y_hat, y))
-        self.log('test/auc', torchmetrics.functional.auc(y_hat, y)) 
         return loss
 
     def print_params(self):
