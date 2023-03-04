@@ -69,7 +69,7 @@ class AutoEncoderDataset(Dataset):
             self.get_image_batch()
         return self.X[index % self.batch_size], self.y[index % self.batch_size]
             
-            
+
 if __name__ == '__main__':
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')
     dataset = AutoEncoderDataset(**dataset_params)

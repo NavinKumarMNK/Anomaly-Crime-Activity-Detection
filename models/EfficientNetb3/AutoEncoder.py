@@ -65,11 +65,9 @@ class AutoEncoder(pl.LightningModule):
             self.save_model()
 
     def save_model(self):
-        dummy_input = torch.randn(1, self.input_size, 256, 256)
-        torch.onnx.export(self, dummy_input, self.weights_save_path+'.onnx', verbose=True, input_names=['input'], output_names=['output'])
-        torch.save(self.state_dict(), self.weights_save_pat + '.pt')
-        artifact = wandb.Artifact('lrcn_model.cpkt', type='model')
-        artifact.add_file(self.weights_save_path+'.onnx')
+        self.encoder.save_model()
+        self.decoder.save_model()
+        artifact = wandb.Artifact('auto_encoder_model.cpkt', type='model')
         wandb.run.log_artifact(artifact)
 
     def print_params(self): 
@@ -98,37 +96,7 @@ class AutoEncoder(pl.LightningModule):
         return y_hat
     
     def training_epoch_end(self, outputs) -> None:
-        torch.save(self.encoder, utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
-        torch.save(self.decoder.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3Decoder.pt')
-
-class LRCNLogger(pl.Callback):
-    def __init__(self, model:AutoEncoder, data:AutoEncoderDataset) -> None:
-        super(LRCNLogger, self).__init__()
-        self.model = model
-        self.data = data
-
-    def on_train_start(self, trainer, pl_module):
-        wandb.watch(self.model, log="all")
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        wandb.watch(self.model, log="all")
-
-    def on_test_end(self, trainer, pl_module):
-        wandb.watch(self.model, log="all")
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        logits = pl_module(self.data.val_dataloader())
-        preds = torch.argmax(logits, dim=1)
-        print("Logging validation metrics")
-        trainer.logger.experiment.log({
-            "val_acc": torchmetrics.functional.accuracy(preds, self.data.val_y),
-            "val_auc": torchmetrics.functional.auc(preds, self.data.val_y),
-            "examples" : [wandb.Video(video, fps=4, format="mp4", caption= f"Pred: {pred} - Label: {label}")
-                            for video, pred, label in zip(self.data.val_x, preds, self.data.val_y)],
-            "global_step": trainer.global_step,          
-            }, step=trainer.global_step)
-
-
+        
 if __name__ == '__main__':
     from pytorch_lightning.loggers import WandbLogger
     logger = WandbLogger(project='AutoEncoder', name='EfficientNetb3')
@@ -153,7 +121,8 @@ if __name__ == '__main__':
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=5)
     device_monitor = DeviceStatsMonitor()
-    checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/')
+    checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/',
+                                            monitor="val_loss", mode='min')
     model_summary = ModelSummary(max_depth=3)
     refresh_rate = TQDMProgressBar(refresh_rate=10)
 

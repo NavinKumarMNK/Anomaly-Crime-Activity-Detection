@@ -62,6 +62,9 @@ class EfficientNetb3Decoder(pl.LightningModule):
         loss = nn.MSELoss()(y_hat, y)
         self.log('train_loss', loss)
         return loss
+    
+    def save_model(self):
+        torch.save(self.model.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt')
 
     def validation_step(self, batch, batch_idx):
         x, y = batch

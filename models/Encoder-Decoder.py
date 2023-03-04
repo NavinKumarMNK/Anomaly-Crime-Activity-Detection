@@ -40,8 +40,13 @@ class EncoderDecoder(pl.LightningDataModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
-        loss = nn.MSELoss()(y_hat, y)
+        seq_length = x.shape[1]
+        loss = 0
+        self.decoder.init_hidden()
+        for x in range(seq_length):
+            y_hat = self(x.view(-1, 3, 256, 256))
+            loss += nn.MSELoss()(y_hat, y)
+            loss = loss/seq_length
         self.log('train_loss', loss)
         return loss
 

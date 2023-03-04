@@ -2,8 +2,8 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../') not in sys.path:
-    sys.path.append(os.path.abspath('../'))
+if os.path.abspath('../../') not in sys.path:
+    sys.path.append(os.path.abspath('../../'))
 import utils.utils as utils
 
 # Import the required modules
@@ -11,19 +11,25 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 import joblib
 import numpy as np
-import wandb
-import pandas
+#import wandb
+
 class SVRDetector():
-    def __init__(self, input_size, kernel='rbf', C=1.0, gamma='scale'):
+    def __init__(self, input_size=1536, kernel='rbf', c=1.0, gamma='scale'):
         self.input_size = input_size
         self.scaler  = StandardScaler()
-        self.svr = SVR(kernel=kernel, C=C, gamma=gamma)
+        self.svr = SVR(kernel=kernel, C=c, gamma=gamma)
         self.frame_no=0
         self.score = []
-        wandb.init()
+        try :
+            self.load(utils.ROOT_PATH + '/weights')
+        except:
+            pass
+        pass
+        #wandb.init()
 
     def __del__(self):
-        wandb.finish()
+        pass
+        #wandb.finish()
 
     def fit(self, X, y):
         self.scaler.fit(X)
@@ -47,17 +53,20 @@ class SVRDetector():
 
     def log_score(self, score, frame_number):
         self.score.append(score)
-        wandb.log({'score': score, 'frame_number': frame_number})
+        #wandb.log({'score': score, 'frame_number': frame_number})
 
 if __name__ == '__main__':
-    import pandas
     import numpy as np
     
     data = np.load(utils.ROOT_PATH + '/data/svr.npy')
     X = data[:, 0:1536]
     y = data[:, 1536]
 
-    trainer_params = utils.config_parser("../", 'SVR_DECODER')
+    trainer_params = utils.config_parse('SVR_DECODER')
     svr = SVRDetector(**trainer_params)
     svr.fit(X, y)
     svr.save(utils.ROOT_PATH + '/weights')
+
+    y_pred = svr.predict(X)
+    print(y_pred)
+

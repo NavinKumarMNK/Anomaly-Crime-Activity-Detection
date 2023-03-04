@@ -58,7 +58,11 @@ class EfficientNetb3Encoder(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         return optimizer
 
+    def save_model(self):
+        torch.save(self.model, self.file_path+'.pt')
+
     def finalize(self):
+        self.save_model()
         self.to_onnx(export_params=True)
         self.to_torchscript()
         self.to_tensorrt()

@@ -14,7 +14,6 @@ from ray.util.sgd import DistributedDataParallel
 from ray.train.torch import DistributedDataParallelPlugin, TorchTrainer
 # Initialize a PyTorch Lightning trainer
 
-
 # Define your training function
 world_size = 2
 
