@@ -28,6 +28,7 @@ class EncoderDecoder(pl.LightningDataModule):
         self.example_input_array = torch.zeros(1, 3, 256, 256)
         self.save_hyperparameters()
         self.encoder = EfficientNetb3Encoder()
+        self.best_val_loss = None
         # encoder is freeze no change in weights
         for param in self.encoder.parameters():
             param.requires_grad = False
@@ -45,7 +46,7 @@ class EncoderDecoder(pl.LightningDataModule):
         self.decoder.init_hidden()
         for x in range(seq_length):
             y_hat = self(x.view(-1, 3, 256, 256))
-            loss += nn.MSELoss()(y_hat, y)
+            loss += nn.CrossEntropyLoss()(y_hat, y)
             loss = loss/seq_length
         self.log('train_loss', loss)
         return loss
@@ -68,16 +69,16 @@ class EncoderDecoder(pl.LightningDataModule):
         self.log('val/loss_epoch', avg_loss)
         self.log('val/acc_epoch', torchmetrics.functional.accuracy(y_hat, y))
         # validation loss is less than previous epoch then save the model
-        if (avg_loss < self.best_val_loss):
+        if (self.best_val_loss) == None:
+            self.best_val_loss = avg_loss
+            self.save_model()
+        elif (avg_loss < self.best_val_loss):
             self.best_val_loss = avg_loss
             self.save_model()
 
     def save_model(self):
-        dummy_input = torch.randn(1, self.input_size, 256, 256)
-        torch.onnx.export(self, dummy_input, self.weights_save_path+'.onnx', verbose=True, input_names=['input'], output_names=['output'])
-        torch.save(self.state_dict(), self.weights_save_pat + '.pt')
+        self.decoder.save_model()
         artifact = wandb.Artifact('lrcn_model.cpkt', type='model')
-        artifact.add_file(self.weights_save_path+'.onnx')
         wandb.run.log_artifact(artifact)
 
     def print_params(self): 
@@ -105,39 +106,9 @@ class EncoderDecoder(pl.LightningDataModule):
         y_hat = self(x)
         return y_hat
     
-    def training_epoch_end(self, outputs) -> None:
-        torch.save(self.decoder, utils.ROOT_PATH + '/weights/LSTMDecoder.pt')
-
-class LSTMLogger(pl.Callback):
-    def __init__(self, model:EncoderDecoder, data:LSTMDataset) -> None:
-        super(LSTMLogger, self).__init__()
-        self.model = model
-        self.data = data
-
-    def on_train_start(self, trainer, pl_module):
-        wandb.watch(self.model, log="all")
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        wandb.watch(self.model, log="all")
-
-    def on_test_end(self, trainer, pl_module):
-        wandb.watch(self.model, log="all")
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        logits = pl_module(self.data.val_dataloader())
-        preds = torch.argmax(logits, dim=1)
-        print("Logging validation metrics")
-        trainer.logger.experiment.log({
-            "val_acc": torchmetrics.functional.accuracy(preds, self.data.val_y),
-            "val_auc": torchmetrics.functional.auc(preds, self.data.val_y),
-            "examples" : [wandb.Video(video, fps=4, format="mp4", caption= f"Pred: {pred} - Label: {label}")
-                            for video, pred, label in zip(self.data.val_x, preds, self.data.val_y)],
-            "global_step": trainer.global_step,          
-            }, step=trainer.global_step)
-
 if __name__ == '__main__' :
     from pytorch_lightning.loggers import WandbLogger
-    logger = WandbLogger(project='AutoEncoder', name='EfficientNetb3')
+    logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
 
     import wandb
     wandb.init()

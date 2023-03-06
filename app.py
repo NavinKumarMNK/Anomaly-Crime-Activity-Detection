@@ -3,28 +3,28 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from utils import utils
+import utils.utils as utils
 import cv2 
 import numpy as np
-from scripts.main import Main
+
 
 device = utils.device()
 import asyncio
 import websockets
 app_params = utils.config_parse('APP')
 
-from models.SVR.SVRDetector import SVRDecoder
-from models.LSTM.Decoder import LRCN
+from models.SVR.SVRDetector import SVRDetector
+from models.LSTM.Decoder import LSTMDecoder
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
 from yoloface import YoloFace as yf
 
-#encoder = EfficientNetb3Encoder().to(device)
-#anomaly_detector = SVRDecoder().to(device)
-#face = yf()
+encoder = EfficientNetb3Encoder().to(device)
+anomaly_detector = SVRDetector()
+face = yf()
 
 async def handle_websocket(websocket, path):
     print(f"New connection from {websocket.remote_address}")
-    #lrcn = LRCN().to(device)
+    decoder = LSTMDecoder().to(device)
     try:
         count =0 
         neg_count=0
@@ -34,7 +34,7 @@ async def handle_websocket(websocket, path):
             data = await websocket.recv()
             img_bytes = bytearray(data)
             npimg = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
-            '''
+    
             embeddings = encoder(npimg)
             res = anomaly_detector(res)
             if (res > app_params['ANOMALY_THRESHOLD']):
@@ -66,8 +66,7 @@ async def handle_websocket(websocket, path):
                 if(app_params['FACE_DETECTOR'] == True):
                     result = face.detect(npimg, recognition = utils.config_parse('FACE_RECOGNIZER'))
                     print(result)
-            '''
-
+            
             cv2.imshow("APP", npimg)
             cv2.waitKey(1)
     

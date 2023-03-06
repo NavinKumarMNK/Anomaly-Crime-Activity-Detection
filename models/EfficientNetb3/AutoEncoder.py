@@ -37,8 +37,12 @@ class AutoEncoder(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
-        loss = nn.MSELoss()(y_hat, y)
+        batch_size = x.shape[0]
+        loss = []
+        for i in range(batch_size):
+            y_hat = self(x[i])
+            loss.append(nn.MSELoss()(y_hat, y[i]))
+        loss = torch.stack(loss).mean()
         self.log('train_loss', loss)
         return loss
 
@@ -59,10 +63,15 @@ class AutoEncoder(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in loss]).mean()
         self.log('val/loss_epoch', avg_loss)
         self.log('val/acc_epoch', torchmetrics.functional.accuracy(y_hat, y))
+        
         # validation loss is less than previous epoch then save the model
-        if (avg_loss < self.best_val_loss):
+        if not hasattr(self, 'best_val_loss'):
             self.best_val_loss = avg_loss
             self.save_model()
+        elif (avg_loss < self.best_val_loss):
+            self.best_val_loss = avg_loss
+            self.save_model()
+        
 
     def save_model(self):
         self.encoder.save_model()
@@ -94,12 +103,10 @@ class AutoEncoder(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
         return y_hat
-    
-    def training_epoch_end(self, outputs) -> None:
         
 if __name__ == '__main__':
     from pytorch_lightning.loggers import WandbLogger
-    logger = WandbLogger(project='AutoEncoder', name='EfficientNetb3')
+    logger = WandbLogger(project='CrimeDetection', name='AutoEncoder')
 
     import wandb
     wandb.init()
@@ -157,3 +164,5 @@ if __name__ == '__main__':
 
     model.encoder.finalize()    
 
+    trainer.test(model, test_dataloaders=test_dataloader)
+    wandb.finish()

@@ -63,8 +63,8 @@ class EfficientNetb3Encoder(pl.LightningModule):
 
     def finalize(self):
         self.save_model()
-        self.to_onnx(export_params=True)
-        self.to_torchscript()
+        self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
+        self.to_torchscript(self.file_path+'_script.pt', method='script', example_input=self.example_input_array)
         self.to_tensorrt()
 
     def to_tensorrt(self):
@@ -83,14 +83,7 @@ class EfficientNetb3Encoder(pl.LightningModule):
             engine = builder.build_engine(network, config)
             with open(self.file_path+'.trt', 'wb') as f:
                 f.write(engine.serialize())   
-
-    def to_onnx(self, **kwargs):
-        return super().to_onnx(self.file_path+'.onnx', self.example_input_array, **kwargs)
-    
-    def to_torchscript(self, method='script', **kwargs):
-        return super().to_torchscript(self.file_path+'_script.pt', method, self.example_input_array, **kwargs)
-
-
+                
 if __name__ == '__main__':
     model = EfficientNetb3Encoder()
     print(model)

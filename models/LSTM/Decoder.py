@@ -72,6 +72,9 @@ class LSTMDecoder(pl.LightningModule):
         self.log('val/loss', loss)
         return loss
 
+    def save_model(self):
+        torch.save(self.lstm,  utils.ROOT_PATH + '/weights/LSTMDecoder.pt')
+        
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
@@ -81,8 +84,9 @@ class LSTMDecoder(pl.LightningModule):
         return loss
 
     def finalize(self):
-        self.to_onnx(export_params=True)
-        self.to_torchscript()
+        self.save_model()
+        self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
+        self.to_torchscript(self.file_path+'_script.pt', method='script', exammple_inputs=self.example_input_array)
         self.to_tensorrt()
 
     def to_tensorrt(self):
@@ -101,12 +105,6 @@ class LSTMDecoder(pl.LightningModule):
             engine = builder.build_engine(network, config)
             with open(self.file_path+'.trt', 'wb') as f:
                 f.write(engine.serialize()) 
-    
-    def to_onnx(self, **kwargs):
-        return super().to_onnx(self.file_path+'.onnx', self.example_input_array, **kwargs)
-    
-    def to_torchscript(self, method='script', **kwargs):
-        return super().to_torchscript(self.file_path+'_script.pt', method, self.example_input_array, **kwargs)
 
 if __name__ == '__main__': 
     model = LSTMDecoder()
