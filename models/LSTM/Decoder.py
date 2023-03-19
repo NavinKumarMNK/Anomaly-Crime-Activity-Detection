@@ -29,6 +29,7 @@ class LSTMDecoder(pl.LightningModule):
         self.example_output_array = torch.rand(1, num_classes)
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
+        self.train_pad = nn.utils.rnn.pad_packed_sequence()
         self.save_hyperparameters()
         self.reset_hidden()
         try:
@@ -45,15 +46,22 @@ class LSTMDecoder(pl.LightningModule):
         self.hidden=None
 
     def forward(self, x):
-        # x.shape: (batch_size, seq_size=1, input_size)
-        if self.hidden is None:
-            self.hidden = self.init_hidden(x.shape[0])
+        # x.shape: (batch_size, seq_size=1, input_size) -> predict
+        if self.train == True:
+            if self.hidden is None:
+                self.hidden = self.init_hidden(x.shape[0])
 
-        self.h, self.c = self.hidden
-        out, (self.h, self.c) = self.lstm(x.unsqueeze(1), (self.h, self.c))
-        out = self.fc(out[:, -1, :]) # only use the last timestep
-        return out
+            self.h, self.c = self.hidden
+            out, (self.h, self.c) = self.lstm(x.unsqueeze(1), (self.h, self.c))
+            out = self.fc(out[:, -1, :]) # only use the last timestep
+            return out
     
+        # x.shape: (batch_size, seq_size=n, input_size) -> predict
+        if self.train == False:
+            x = self.pad_seq(x)
+            out = self.lstm(x)
+            return out
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
@@ -61,8 +69,10 @@ class LSTMDecoder(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat, _= self(x)
+        self.reset_hidden()
         loss = F.cross_entropy(y_hat, y)
         self.log('train/loss', loss)
+       
         return loss
 
     def validation_step(self, batch, batch_idx):

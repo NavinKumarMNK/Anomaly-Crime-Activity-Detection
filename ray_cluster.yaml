@@ -1,0 +1,9 @@
+cluster_name: ray_cluster
+provider:
+    type: local
+    head_ip: 172.16.96.59
+    worker_ips: [172.16.96.61]
+auth:
+    ssh_user: windows
+    ssh_private_key: ~/.ssh/id_rsa
+

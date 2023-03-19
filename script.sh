@@ -10,7 +10,7 @@ else
     bash ~/miniconda.sh -b -p $HOME/miniconda
 
     # Add Miniconda to PATH
-    conda_dir="/home/windows/miniconda3"
+    conda_dir="/home/windows/miniconda"
 
     # Create a backup of the existing bashrc file
     cp ~/.bashrc ~/.bashrc.backup
@@ -29,7 +29,7 @@ else
         fi
     fi
     unset __conda_setup
-    # <<< conda initialize <<<" >> ~/.bashrc
+# <<< conda initialize <<<" >> ~/.bashrc
 
     # Source the updated bashrc file to apply the changes
     source ~/.bashrc
@@ -39,16 +39,31 @@ fi
 source ~/miniconda/bin/activate
 # Define the environment name
 env_name="ray"
-
 # Check if the environment is already present in conda
 if conda env list | grep -q $env_name; then
     echo "$env_name is already present in conda."
 else
     conda create -y --name ray
     conda activate ray
-    conda install -y python=3.10.8
-    pip install -U "ray[default]"
+    # Check if requirements.txt exists
+    if [ ! -f requirements.txt ]; then
+        echo "ERROR: requirements.txt file not found"
+        exit 1
+    fi
+
+    # Install packages from requirements.txt
+    pip install -U 'ray[default]'
+    echo "Installing packages from requirements.txt..."
+    conda install -y --file requirements.txt
     conda install -y pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+    # Check if installation was successful
+    if [ $? -eq 0 ]; then
+         echo "Packages successfully installed"
+    else
+        echo "ERROR: Package installation failed"
+        exit 1
+    fi
 fi
 rm script.sh
 rm miniconda.sh
+source miniconda/bin/activate

@@ -26,8 +26,9 @@ class EfficientNetb3Encoder(pl.LightningModule):
         self.save_hyperparameters()
         self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
 
+
     def forward(self, x):
-        return self.model(x)
+        return self.model(x.cuda())
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -64,7 +65,7 @@ class EfficientNetb3Encoder(pl.LightningModule):
     def finalize(self):
         self.save_model()
         self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
-        self.to_torchscript(self.file_path+'_script.pt', method='script', example_input=self.example_input_array)
+        self.to_torchscript(self.file_path+'_script.pt', method='script', example_inputs=self.example_input_array)
         self.to_tensorrt()
 
     def to_tensorrt(self):
@@ -75,7 +76,6 @@ class EfficientNetb3Encoder(pl.LightningModule):
                 parser.parse(model.read())
             
             config = builder.create_builder_config()
-            config.set_memory_pool_limit = 1 << 30
             config.set_flag(trt.BuilderFlag.FP16)
 
             network.get_input(0).shape = [1, 3, 256, 256]

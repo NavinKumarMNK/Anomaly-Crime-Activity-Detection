@@ -4,7 +4,7 @@ import pytorch_lightning
 import configparser
 import os
 
-ROOT_PATH = '/home/mnk/MegNav/Projects/Crime-Activity-Detection-and-Suspect-Identification'
+ROOT_PATH = '/home/windows/Video-Detection'
 
 def current_path():
     return os.path.abspath('./')
@@ -52,12 +52,11 @@ def one_hot_encode(label, num_classes):
     one_hot[label] = 1
     return one_hot
 
-def dataset_image_autoencoder():
-    file_path = ROOT_PATH + "/data/"
+def dataset_image_autoencoder(file_path):
     batch_size = config_parse('AUTOENCODER_DATASET')['batch_size']
     import cv2
     annotation = open(file_path+"anomaly_train.txt", 'r').read().splitlines()
-    with open(file_path+"auto_encoder.txt", "w+") as f:
+    with open(file_path+"auto_encoder.txt", "w") as f:
         for video_path in annotation:
             video = cv2.VideoCapture(file_path + video_path)
             count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -69,5 +68,4 @@ def dataset_image_autoencoder():
                 f.write(str)
     return f"{file_path}auto_encoder.txt"
 
-if __name__ == '__main__':
-    dataset_image_encoderclassifer()
+

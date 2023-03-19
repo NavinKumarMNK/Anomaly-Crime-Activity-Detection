@@ -7,7 +7,7 @@ def run_script(ip, username, password):
 
 if __name__ == '__main__':
     # List of IP addresses to run the script on
-    ips = ['172.16.96.70', '172.16.96.68']
+    ips = ['172.16.96.65']
 
     # Username and password for SSH authentication
     username = 'windows'

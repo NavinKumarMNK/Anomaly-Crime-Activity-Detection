@@ -13,6 +13,8 @@ uuid
 watchdog
 seaborn
 Tk
-pytorch_lightning
 flask
-torch
+ray_lightning
+onnx
+tensorrt
+wandb

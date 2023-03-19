@@ -2,8 +2,8 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../../') not in sys.path:
-    sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 import utils.utils as utils
 
 # Import the required modules
@@ -19,31 +19,43 @@ from models.preprocessing import ImagePreProcessing
 
 class AutoEncoderDataset(Dataset):
     def __init__(self, batch_size:int, num_workers:int,
-                    data_path) -> None:
+                    data_path, annotation_train) -> None:
         super(AutoEncoderDataset, self).__init__()
-        self.data_path = utils.ROOT_PATH + data_path
-        annotation_train = utils.dataset_image_autoencoder()
+        self.data_path = data_path
         self.annotation_train = open(annotation_train, 
                                         'r').read().splitlines()
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
         self.preprocessing = ImagePreProcessing()
-        
+        self.old_path = None
+
     def __len__(self):
         return len(self.annotation_train)
 
     def __getitem__(self, index:int):
         video_path = self.annotation_train[index]
         video_path = os.path.join(self.data_path, video_path) 
+        
         cap = cv2.VideoCapture(video_path.strip())     
+    
         if not cap.isOpened():
-            print("Error opening video stream or file")
+            cap = cv2.VideoCapture(self.old_path.strip())     
+            
         frames = []
         #random frames 
         count: int = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if count == 0:
+            print(video_path, self.old_path)
+            video_path = self.old_path
+            cap = cv2.VideoCapture(video_path.strip())
+            count: int = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
         # Get random frame indexes for batch size
-        ret_frames= np.random.randint(0, count, self.batch_size)
-        print(ret_frames)
+        if count < self.batch_size:
+            ret_frames = np.random.randint(0, count, count)
+        else:
+            ret_frames= np.random.randint(0, count, self.batch_size)
+        print(count)
         for frame in ret_frames:
             cap.set(1, frame)
             ret, frame = cap.read()
@@ -57,19 +69,22 @@ class AutoEncoderDataset(Dataset):
         X = torch.stack(frames, dim=0)
         y = X.clone()
         frames = []
-        print(X.shape, y.shape)
+ 
+        self.old_path = video_path
         return X, y    
     
 class AutoEncoderDataModule(pl.LightningDataModule):
     def __init__(self, batch_size:int, num_workers:int,
-                    data_path) -> None:
+                    data_path, annotation_train) -> None:
         super(AutoEncoderDataModule, self).__init__()
+        self.annotation_train = annotation_train
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
         self.data_path = data_path
 
     def setup(self, stage=None):
-        full_dataset = AutoEncoderDataset(self.batch_size, self.num_workers, self.data_path)
+        full_dataset = AutoEncoderDataset(self.batch_size, self.num_workers,
+                                           self.data_path, self.annotation_train)
         train_size = int(0.8 * len(full_dataset))
         val_size = int(0.1 * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
@@ -93,4 +108,3 @@ if __name__ == '__main__':
     train_loader = dataset.train_dataloader()
     for i, (X, y) in enumerate(train_loader):
         print(X.shape, y.shape)
-        break
