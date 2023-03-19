@@ -8,7 +8,7 @@ import utils.utils as utils
 
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
 from models.SVR.SVRDetector import SVRDetector
-from models.preprocessing import ImagePreProcessing
+from utils.preprocessing import ImagePreProcessing
 
 import torch
 import torch.nn as nn

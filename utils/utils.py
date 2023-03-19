@@ -4,7 +4,8 @@ import pytorch_lightning
 import configparser
 import os
 
-ROOT_PATH = '/home/windows/Video-Detection'
+ROOT_PATH = '/home/mnk/MegNav/Projects/Anomaly-Crime-Activity-Detection'
+DATA_PATH = '/home/mnk/MegNav/Projects/Anomaly-Crime-Activity-Detection/data'
 
 def current_path():
     return os.path.abspath('./')

@@ -2,8 +2,7 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../../') not in sys.path:
-    sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 import utils.utils as utils
 
 # Import the required modules
@@ -19,32 +18,32 @@ import pytorch_lightning as pl
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
 from models.LSTM.Decoder import LSTMDecoder
 import ray_lightning as rl
-from models.LSTM.LSTMDataset import LSTMDataset
+from models.LSTM.LSTMDataset import LSTMDatasetModule
 
-class EncoderDecoder(pl.LightningDataModule):
+class EncoderDecoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(EncoderDecoder, self).__init__()
         self.example_input_array = torch.zeros(1, 3, 256, 256)
         self.save_hyperparameters()
         self.encoder = EfficientNetb3Encoder()
-        self.best_val_loss = None
         # encoder is freeze no change in weights
         for param in self.encoder.parameters():
             param.requires_grad = False
         self.decoder = LSTMDecoder()
     
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
+        with torch.no_grad():
+            x = self.encoder(x)
+        x = self.decoder(x.unsqueeze(0))
         return x
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
-        loss += nn.CrossEntropyLoss()(y_hat, y)
+        y_hat = self(x.squeeze(0))
+        loss = nn.CrossEntropyLoss()(y_hat, y)
         self.log('train_loss', loss)
-        return loss
+        return {"loss" : loss}
 
     def training_epoch_end(self, outputs):
         loss, y_hat, y = outputs["loss"], outputs["y_hat"], outputs["y"]
@@ -54,22 +53,28 @@ class EncoderDecoder(pl.LightningDataModule):
         
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
+        y_hat = self(x.squeeze(0))
         loss = nn.MSELoss()(y_hat, y)
         self.log('val_loss', loss)
+        return {"val_loss": loss, "y_hat": y_hat, "y": y}
+        
     
     def validation_epoch_end(self, outputs)-> None:
-        loss, y_hat, y = outputs["loss"], outputs["y_hat"], outputs["y"]
-        avg_loss = torch.stack([x['loss'] for x in loss]).mean()
+        loss, y_hat, y = outputs[0]['val_loss'], outputs[0]['y_hat'], outputs[0]['y']
+        try:
+            avg_loss = torch.stack([x['loss'] for x in loss]).mean()
+        except TypeError:
+            avg_loss = loss
         self.log('val/loss_epoch', avg_loss)
-        self.log('val/acc_epoch', torchmetrics.functional.accuracy(y_hat, y))
+        
         # validation loss is less than previous epoch then save the model
-        if (self.best_val_loss) == None:
+        if not hasattr(self, 'best_val_loss'):
             self.best_val_loss = avg_loss
-            self.save_model()
+            #self.save_model()
         elif (avg_loss < self.best_val_loss):
             self.best_val_loss = avg_loss
             self.save_model()
+
 
     def save_model(self):
         self.decoder.save_model()
@@ -84,38 +89,39 @@ class EncoderDecoder(pl.LightningDataModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
+        y_hat = self(x.squeeze(0))
         loss = nn.MSELoss()(y_hat, y)
         self.log('test_loss', loss)
+        return {"test_loss": loss, "y_hat": y_hat, "y": y}
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
         return {
             'optimizer': optimizer,
             'lr_scheduler': lr_scheduler
         }
-        
+
     def prediction_step(self, batch, batch_idx, dataloader_idx=None):
         x, y = batch
         y_hat = self(x)
         return y_hat
     
 if __name__ == '__main__' :
-    from pytorch_lightning.loggers import WandbLogger
-    logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
+    #from pytorch_lightning.loggers import WandbLogger
+    #logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
 
-    import wandb
-    wandb.init()
-    from pytorch_lightning import Trainer
-    from torch.utils.data import DataLoader
-
+    #import wandb
+    #wandb.init()
+    import ray
+    
+    #ray.init(runtime_env={"working_dir": utils.ROOT_PATH})
+    
     dataset_params = utils.config_parse('LSTM_DATASET')
-    dataset = LSTMDataset(**dataset_params)
 
-    train_dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=True)
-    val_dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=True)
-    test_dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=True)
+    dataset = LSTMDatasetModule(**dataset_params)
+    dataset.setup()
+    
 
     from pytorch_lightning.callbacks import ModelSummary
     from pytorch_lightning.callbacks.progress import TQDMProgressBar
@@ -152,11 +158,22 @@ if __name__ == '__main__' :
     elif int(dist_env_params['data_parallel']) == 1:
         strategy = rl.RayStrategy(num_workers=dist_env_params['num_workers'],
                                         use_gpu=dist_env_params['use_gpu'])
-    trainer = Trainer(**ed_params, 
+    trainer = pl.Trainer(**ed_params, 
                     callbacks=callbacks, 
-                    logger=logger,
-                    strategy=strategy)
-    trainer.fit(model, train_dataloader, val_dataloader)
+                    #logger=logger,
+                    #strategy=strategy
+                    accelerator='gpu')
+    
+    '''
+    trainer = Trainer(**autoencoder_params, 
+                    callbacks=callbacks, 
+                    strategy='deepspeed',
+                    accelerator='gpu',
+                    num_nodes=6,
+                    )
+    '''
+
+    trainer.fit(model, dataset)
 
     model.decoder.finalize()
 

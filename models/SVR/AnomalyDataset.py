@@ -2,8 +2,7 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../../') not in sys.path:
-    sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 import utils.utils as utils
 
 # Import the required modules
@@ -15,7 +14,7 @@ from torch.utils.data import Dataset, DataLoader, TensorDataset
 import cv2
 import PIL
 import numpy as np
-from models.preprocessing import ImagePreProcessing
+from utils.preprocessing import ImagePreProcessing
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
 
 class AnomalyDataset(Dataset):
@@ -97,22 +96,28 @@ if __name__ == '__main__':
     dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=True)
     store_path = utils.ROOT_PATH + '/data/svr.npy'
     feature_extractor = EfficientNetb3Encoder().to('cuda')
+    
+    print("hello")
+    with torch.no_grad():
+        feature_extractor.eval()
+        for i, (X, labels) in enumerate(dataloader):
+            X = X.to('cuda').squeeze(0)
 
-    for i, (X, labels) in enumerate(dataloader):
-        X = X.to('cuda').squeeze(0)
+            X = feature_extractor(X)
+            labels = labels.transpose(0, 1)
+            X = X.detach().cpu().numpy()
+            print(labels.shape, X.shape)
 
-        X = feature_extractor(X)
-        labels = labels.transpose(0, 1)
-        X = X.detach().cpu().numpy()
-        print(labels.shape, X.shape)
+            if os.path.exists(store_path):
+                file = np.load(store_path)
+                X = np.append(X, labels, axis=1)
+                print(X.shape, file.shape)
+                file = np.append(file, X, axis=0)
+                np.save(store_path, file)
+            else:
+                X = np.append(X, labels, axis=1)
+                print(X.shape)
+                np.save(store_path, X)
 
-        if os.path.exists(store_path):
-            X = np.load(store_path)
-            X = np.append(X, labels, axis=1)
-            np.save(store_path, X)
-        else:
-            X = np.append(X, labels, axis=1)
-            np.save(store_path, X)
-
-        print(i, X.shape, X[0])
-        break
+            print(i, X.shape, X[-1])
+            break

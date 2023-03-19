@@ -2,8 +2,7 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../../') not in sys.path:
-    sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 import utils.utils as utils
 
 # Import the required modules
@@ -19,17 +18,17 @@ from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
 
 class LSTMDecoder(pl.LightningModule):
     def __init__(self, encoder_output_size:int=1536, hidden_size:int=768, 
-                    num_layers:int=3, num_classes:int=14) -> None:
+                    num_layers:int=3, num_classes:int=14, is_train:bool=True) -> None:
         super().__init__()
         self.file_path = utils.ROOT_PATH + '/weights/LSTMDecoder'
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.is_train = is_train
         self.encoder_output_size = encoder_output_size
-        self.example_input_array = torch.rand(1, self.encoder_output_size)
+        self.example_input_array = torch.rand(1, 1, self.encoder_output_size)
         self.example_output_array = torch.rand(1, num_classes)
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
-        self.train_pad = nn.utils.rnn.pad_packed_sequence()
         self.save_hyperparameters()
         self.reset_hidden()
         try:
@@ -38,32 +37,32 @@ class LSTMDecoder(pl.LightningModule):
             torch.save(self.lstm, utils.ROOT_PATH + '/weights/LSTMDecoder.pt')
 
     def init_hidden(self, batch_size):
-        h = torch.zeros(self.num_layers, batch_size, self.hidden_size)
-        c = torch.zeros(self.num_layers, batch_size, self.hidden_size)
+        h = torch.rand(self.num_layers, int(batch_size), self.hidden_size)
+        c = torch.rand(self.num_layers, int(batch_size), self.hidden_size)
         return h, c
 
-    def reset_hidden(self):
-        self.hidden=None
+    def reset_hidden(self, batch_size=1):
+        self.hidden = self.init_hidden(batch_size)
 
     def forward(self, x):
         # x.shape: (batch_size, seq_size=1, input_size) -> predict
-        if self.train == True:
+        if self.is_train == False:
             if self.hidden is None:
-                self.hidden = self.init_hidden(x.shape[0])
-
+                self.reset_hidden(batch_size=x.shape[0])
+            
             self.h, self.c = self.hidden
-            out, (self.h, self.c) = self.lstm(x.unsqueeze(1), (self.h, self.c))
+            out, (self.h, self.c) = self.lstm(x, (self.h, self.c))
             out = self.fc(out[:, -1, :]) # only use the last timestep
             return out
-    
-        # x.shape: (batch_size, seq_size=n, input_size) -> predict
-        if self.train == False:
-            x = self.pad_seq(x)
+        
+        # x.shape: (batch_size, seq_size=n, input_size) -> train
+        if self.is_train == True:
             out = self.lstm(x)
+            out = self.fc(out[0][:, -1, :]) # only use the last timestep
             return out
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         return optimizer
     
     def training_step(self, batch, batch_idx):
@@ -93,10 +92,22 @@ class LSTMDecoder(pl.LightningModule):
         self.log('test/acc', torchmetrics.functional.accuracy(y_hat, y))
         return loss
 
+    def predict(self, x):
+        # apply softmax to output
+        self.is_train = False
+        self.eval()
+        with torch.no_grad():
+            y_hat = self(x)
+            # get the highes value
+            y_hat = torch.argmax(y_hat, dim=1)
+        return y_hat
+    
+
     def finalize(self):
         self.save_model()
+        self.is_train = False
         self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
-        self.to_torchscript(self.file_path+'_script.pt', method='script', exammple_inputs=self.example_input_array)
+        self.to_torchscript(self.file_path+'_script.pt', method='script')
         self.to_tensorrt()
 
     def to_tensorrt(self):
@@ -122,14 +133,33 @@ if __name__ == '__main__':
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)
 
+    #training test
+    values = torch.randn(1, 128, 1536)
+    hello = model(values)
+    print(hello[0].shape)
+
+    #inference test
+    model.is_train = False
     i = 0
-    while i < 30:
-        values = torch.randn(1, 1536)
-        model(values)
+    while i < 128:
+        values = torch.randn(1, 1, 1536)
+        hello = model(values)
         i+=1
-        if(i==10):
+        if(i==32):
+            model.reset_hidden()
+    print(hello)
+
+    #predict
+    model.is_train = False
+    i = 0
+    while i < 128:
+        values = torch.randn(1, 1, 1536)
+        hello = model.predict(values)
+        i+=1
+        if(i==32):
             model.reset_hidden()
 
-    print(model(values).shape)
+    print(hello)
     
     model.finalize()
+    

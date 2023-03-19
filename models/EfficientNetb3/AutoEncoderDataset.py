@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import cv2
 import PIL
 import numpy as np
-from models.preprocessing import ImagePreProcessing
+from utils.preprocessing import ImagePreProcessing
 
 class AutoEncoderDataset(Dataset):
     def __init__(self, batch_size:int, num_workers:int,

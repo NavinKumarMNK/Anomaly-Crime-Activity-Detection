@@ -1,4 +1,4 @@
-data
+data/
 Resources
 .env
 .ipynb_checkpoints
@@ -8,3 +8,4 @@ database
 lightning_logs
 .vscode
 wandb
+temp

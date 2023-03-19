@@ -57,7 +57,7 @@ class AutoEncoder(pl.LightningModule):
         loss = nn.MSELoss()(y_hat, y)
         self.log('val_loss', loss)
         return {"val_loss": loss, "y_hat": y_hat, "y": y}
-
+        
     def validation_epoch_end(self, outputs)-> None:
         loss, y_hat, y = outputs[0]['val_loss'], outputs[0]['y_hat'], outputs[0]['y']
         try:
@@ -115,8 +115,7 @@ if __name__ == '__main__':
 
     #import wandb
     #wandb.init()
-    from pytorch_lightning import Trainer
-    from torch.utils.data import DataLoader
+
     print("hello")
     import ray
     
@@ -167,7 +166,7 @@ if __name__ == '__main__':
                                         num_workers=dist_env_params['num_workers'])
     print("hello")
 
-    trainer = Trainer(**autoencoder_params, 
+    trainer = pl.Trainer(**autoencoder_params, 
                     callbacks=callbacks, 
                     strategy=strategy,
                     #accelerator='gpu',

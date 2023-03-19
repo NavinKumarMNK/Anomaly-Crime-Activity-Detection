@@ -16,11 +16,9 @@ app_params = utils.config_parse('APP')
 from models.SVR.SVRDetector import SVRDetector
 from models.LSTM.Decoder import LSTMDecoder
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
-from yoloface import YoloFace as yf
 
 encoder = EfficientNetb3Encoder().to(device)
 anomaly_detector = SVRDetector()
-face = yf()
 
 async def handle_websocket(websocket, path):
     print(f"New connection from {websocket.remote_address}")
@@ -63,10 +61,7 @@ async def handle_websocket(websocket, path):
                 neg_count = 0
             else:
                 print("Action : ", action)
-                if(app_params['FACE_DETECTOR'] == True):
-                    result = face.detect(npimg, recognition = utils.config_parse('FACE_RECOGNIZER'))
-                    print(result)
-            
+                
             cv2.imshow("APP", npimg)
             cv2.waitKey(1)
     
