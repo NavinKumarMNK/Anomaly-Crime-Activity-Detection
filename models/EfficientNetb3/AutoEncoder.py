@@ -173,6 +173,16 @@ if __name__ == '__main__':
                     #accelerator='gpu',
                     
                     )
+                    
+    '''
+    trainer = Trainer(**autoencoder_params, 
+                    callbacks=callbacks, 
+                    strategy='deepspeed',
+                    accelerator='gpu',
+                    num_nodes=6,
+                    )
+    '''
+
     print("hello")
     trainer.fit(model, dataset)
 

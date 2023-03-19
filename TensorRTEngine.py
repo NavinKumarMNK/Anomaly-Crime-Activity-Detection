@@ -1,3 +1,4 @@
+#pycuda not supported in my environment, so its the basic template
 import requests
 import numpy as np
 import tensorrt as trt
@@ -42,7 +43,7 @@ def infer(x: np.ndarray) -> np.ndarray:
 # Define a FastAPI app and wrap it in a deployment with a route handler
 app = FastAPI()
 
-@serve.deployment(route_prefix="/")
+@serve.deployment(route_prefix="/predict")
 @serve.ingress(app)
 class TensorRTDeployment:
     # FastAPI will automatically parse the HTTP request for us
