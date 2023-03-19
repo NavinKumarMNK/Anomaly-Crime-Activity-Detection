@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 import utils.utils as utils
 
 # Import the required modules
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVR
 import joblib
 import numpy as np
@@ -16,6 +16,8 @@ class SVRDetector():
     def __init__(self, input_size=1536, kernel='rbf', c=1.0, gamma='scale'):
         self.input_size = input_size
         self.scaler  = StandardScaler()
+        self.pre_scaler = MinMaxScaler()
+        
         self.svr = SVR(kernel=kernel, C=c, gamma=gamma)
         self.frame_no=0
         self.score = []
@@ -35,6 +37,9 @@ class SVRDetector():
         X_scaled = self.scaler.transform(X)
         self.svr.fit(X_scaled, y)
     
+    def __call__(self, X):
+        return self.predict(X)
+
     def predict(self, X):
         X_scaled = self.scaler.transform(X)
         scores = self.svr.predict(X_scaled)

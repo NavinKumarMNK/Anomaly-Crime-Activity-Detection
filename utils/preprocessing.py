@@ -21,4 +21,3 @@ class ImagePreProcessing:
             T.RandomVerticalFlip(p=0.5),
             T.RandomRotation(90)
         ])
-        

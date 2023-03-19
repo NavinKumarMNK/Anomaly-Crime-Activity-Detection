@@ -12,62 +12,70 @@ device = utils.device()
 import asyncio
 import websockets
 app_params = utils.config_parse('APP')
+print(app_params)
 
 from models.SVR.SVRDetector import SVRDetector
 from models.LSTM.Decoder import LSTMDecoder
 from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from utils.preprocessing import ImagePreProcessing
 
+pre = ImagePreProcessing()
 encoder = EfficientNetb3Encoder().to(device)
 anomaly_detector = SVRDetector()
 
 async def handle_websocket(websocket, path):
-    print(f"New connection from {websocket.remote_address}")
-    decoder = LSTMDecoder().to(device)
-    try:
-        count =0 
-        neg_count=0
-        flag = 0
-        action = None
-        while True:
-            data = await websocket.recv()
-            img_bytes = bytearray(data)
-            npimg = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
-    
-            embeddings = encoder(npimg)
-            res = anomaly_detector(res)
-            if (res > app_params['ANOMALY_THRESHOLD']):
-                count+=1
-            else :
-                count = 0
-            
-            if (res < app_params['ANOMALY_THRESHOLD'] / 2):
-                neg_count -= 1    
-            
-            if (neg_count < -10):
-                flag = 0
-                neg_count = 0   
-            
-            if(count > 10):
-                print("Anomaly Detected")
-                flag = 1
-                count = 0
+    with torch.no_grad():
+        encoder.eval()
+        print(f"New connection from {websocket.remote_address}")
+        decoder = LSTMDecoder().to(device)
+        decoder.eval()
+        try:
+            count =0 
+            neg_count=0
+            flag = 0
+            action = None
+            while True:
+                data = await websocket.recv()
+                img_bytes = bytearray(data)
+                npimg = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
 
-            if (flag == 1):
-                action = lrnc(npimg)
-
-            if (action == -1):
-                flag = 0
-                count = 0
-                neg_count = 0
-            else:
-                print("Action : ", action)
+                embeddings = encoder(pre.transforms(npimg).to(
+                                device).unsqueeze(0))
+                res = anomaly_detector(embeddings.detach().cpu().numpy())
+                if (res > app_params['anomaly_threshold']):
+                    count+=1
+                else :
+                    count = 0
                 
-            cv2.imshow("APP", npimg)
-            cv2.waitKey(1)
-    
-    except websockets.exceptions.ConnectionClosed:
-        print(f"Connection closed from {websocket.remote_address}")
-        cv2.destroyWindow("APP")
+                if (res < app_params['anomaly_threshold'] / 2):
+                    neg_count -= 1    
+                
+                if (neg_count < -10):
+                    flag = 0
+                    neg_count = 0   
+                    decoder.reset_hidden()
+                
+                if(count > 10):
+                    print("Anomaly Detected")
+                    flag = 1
+                    count = 0
+
+                if (flag == 1):
+                    action = decoder(npimg)
+
+                if (action == -1):
+                    flag = 0
+                    count = 0
+                    neg_count = 0
+                else:
+                    print("Action : ", action)
+                    
+                cv2.imshow("APP", npimg)
+                cv2.waitKey(1)
+        
+        except websockets.exceptions.ConnectionClosed:
+            print(f"Connection closed from {websocket.remote_address}")
+            cv2.destroyWindow("APP")
 
 async def main():
     async with websockets.serve(handle_websocket, "localhost", 8765):
