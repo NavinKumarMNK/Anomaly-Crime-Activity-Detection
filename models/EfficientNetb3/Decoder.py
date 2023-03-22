@@ -22,6 +22,7 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
         self.fc = nn.Linear(1536, 1536*4*4)
+        self.gelu = nn.GELU()
         self.model = nn.Sequential(
             nn.ConvTranspose2d(1536, 1024, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm2d(1024),
@@ -41,9 +42,16 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
         )
+        # if weights file not found then save the weights
+        try:
+            self.model.load_state_dict(torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt'))
+        except Exception as e:
+            torch.save(self.model.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt')
+
 
     def forward(self, x):
         x = self.fc(x)
+        x = self.gelu(x)
         x = x.view(-1, 1536, 4, 4)
         return self.model(x)
 
@@ -51,8 +59,7 @@ class EfficientNetb3Decoder(pl.LightningModule):
     def __init__(self):
         super(EfficientNetb3Decoder, self).__init__()
         self.model = Decoder()
-        self.model.load_state_dict(torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt'))
-    
+        
     def forward(self, x):
         return self.model(x)
 

@@ -60,8 +60,12 @@ def dataset_image_autoencoder(file_path):
     with open(file_path+"auto_encoder.txt", "w") as f:
         for video_path in annotation:
             video = cv2.VideoCapture(file_path + video_path)
+            
             count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            if count == 0:
+                continue
             count = int(count / batch_size) + 1
+            
             i = 0
             while i != count:
                 i+=1

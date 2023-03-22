@@ -15,6 +15,7 @@ import wandb
 import torch.nn as nn
 import tensorrt as trt
 import onnx
+from torchvision import models
 
 # Encoder
 class EfficientNetb3Encoder(pl.LightningModule):
@@ -24,11 +25,16 @@ class EfficientNetb3Encoder(pl.LightningModule):
         self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1536)
         self.save_hyperparameters()
-        self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
-
-
+        try:
+            print('model Found')
+            self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
+        except Exception as e:
+            self.model = models.efficientnet_b3(include_top=False, weights='EfficientNet_B3_Weights.DEFAULT')
+            self.model.classifier = nn.Identity()
+            torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
+    
     def forward(self, x):
-        return self.model(x.cuda())
+        return self.model(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -60,10 +66,12 @@ class EfficientNetb3Encoder(pl.LightningModule):
         return optimizer
 
     def save_model(self):
+        print("Saving Model")
         torch.save(self.model, self.file_path+'.pt')
 
     def finalize(self):
         self.save_model()
+
         self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
         self.to_torchscript(self.file_path+'_script.pt', method='script', example_inputs=self.example_input_array)
         self.to_tensorrt()
