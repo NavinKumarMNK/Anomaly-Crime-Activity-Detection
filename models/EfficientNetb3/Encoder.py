@@ -23,13 +23,13 @@ class EfficientNetb3Encoder(pl.LightningModule):
         super(EfficientNetb3Encoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetb3Encoder'
         self.example_input_array = torch.rand(1, 3, 256, 256)
-        self.example_output_array = torch.rand(1, 1536)
+        self.example_output_array = torch.rand(1, 1280)
         self.save_hyperparameters()
         try:
             print('model Found')
             self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
         except Exception as e:
-            self.model = models.efficientnet_b3(include_top=False, weights='EfficientNet_B3_Weights.DEFAULT')
+            self.model = models.efficientnet_v2_m(include_top=False, weights='EfficientNet_V2_M_Weights.DEFAULT')
             self.model.classifier = nn.Identity()
             torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
     

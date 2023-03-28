@@ -197,7 +197,7 @@ def train():
     
     trainer = Trainer(**autoencoder_params, 
                 callbacks=callbacks, 
-                strategy=strategy,
+                #strategy=strategy,
                 #accelerator='gpu',
                 #logger=logger,
                 num_sanity_val_steps=0,
@@ -205,8 +205,9 @@ def train():
                 enable_checkpointing=True,
                 )
 
-    trainer.fit(model, dataset)
+    #trainer.fit(model, dataset)
     
+    model.encoder.finalize()
 
 if __name__ == '__main__':
     

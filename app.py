@@ -40,7 +40,7 @@ async def handle_websocket(websocket, path):
                 npimg = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
 
                 embeddings = encoder(pre.transforms(npimg).to(
-                                device).unsqueeze(0))
+                                device).squeeze(0))
                 res = anomaly_detector(embeddings.detach().cpu().numpy())
                 if (res > app_params['anomaly_threshold']):
                     count+=1

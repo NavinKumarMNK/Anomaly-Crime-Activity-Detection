@@ -13,7 +13,7 @@ import numpy as np
 #import wandb
 
 class SVRDetector():
-    def __init__(self, input_size=1536, kernel='rbf', c=1.0, gamma='scale'):
+    def __init__(self, input_size=1280, kernel='rbf', c=1.0, gamma='scale'):
         self.input_size = input_size
         self.scaler  = StandardScaler()
         self.pre_scaler = MinMaxScaler()
@@ -63,8 +63,8 @@ if __name__ == '__main__':
     import numpy as np
     
     data = np.load(utils.ROOT_PATH + '/data/svr.npy')
-    X = data[:, 0:1536]
-    y = data[:, 1536]
+    X = data[:, 0:1280]
+    y = data[:, 1280]
 
     trainer_params = utils.config_parse('SVR_DECODER')
     svr = SVRDetector(**trainer_params)
