@@ -1,11 +1,10 @@
 import torch.nn as nn
 import torch
-import pytorch_lightning
 import configparser
 import os
 
-ROOT_PATH = '/home/mnk/MegNav/Projects/Anomaly-Crime-Activity-Detection'
-DATA_PATH = '/home/mnk/MegNav/Projects/Anomaly-Crime-Activity-Detection/data'
+ROOT_PATH = '/mnt/nfs_share/nfs_share/Video-Detection'
+DATA_PATH = '/mnt/nfs_share/nfs_share/Data/data'
 
 def current_path():
     return os.path.abspath('./')
@@ -53,13 +52,18 @@ def one_hot_encode(label, num_classes):
     one_hot[label] = 1
     return one_hot
 
-def dataset_image_autoencoder(file_path):
+def dataset_image_autoencoder(file_path, file_name):
     batch_size = config_parse('AUTOENCODER_DATASET')['batch_size']
     import cv2
-    annotation = open(file_path+"anomaly_train.txt", 'r').read().splitlines()
+    annotation = open(file_path+file_name, 'r').read().splitlines()
     with open(file_path+"auto_encoder.txt", "w") as f:
         for video_path in annotation:
-            video = cv2.VideoCapture(file_path + video_path)
+            write_path = video_path
+            lst = video_path.split('  ')
+            video_path = lst[0]
+            video_path = os.path.join(file_path, lst[1], video_path) 
+            print(video_path)
+            video = cv2.VideoCapture(video_path.strip())
             
             count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             if count == 0:
@@ -69,7 +73,7 @@ def dataset_image_autoencoder(file_path):
             i = 0
             while i != count:
                 i+=1
-                str = f"{video_path} \n"
+                str = f"{write_path} \n"
                 f.write(str)
     return f"{file_path}auto_encoder.txt"
 

@@ -15,7 +15,7 @@ import wandb
 import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
-from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.LSTM.Decoder import LSTMDecoder
 import ray_lightning as rl
 from models.LSTM.LSTMDataset import LSTMDatasetModule
@@ -26,7 +26,7 @@ class EncoderDecoder(pl.LightningModule):
         super(EncoderDecoder, self).__init__()
         self.example_input_array = torch.zeros(1, 3, 256, 256)
         self.save_hyperparameters()
-        self.encoder = EfficientNetb3Encoder()
+        self.encoder = EfficientNetv2Encoder()
         # encoder is freeze no change in weights
         for param in self.encoder.parameters():
             param.requires_grad = False
@@ -145,7 +145,6 @@ if __name__ == '__main__' :
 
     model = EncoderDecoder()
     ed_params = utils.config_parse('ENCODER_DECODER_TRAIN')
-    print(ed_params)
     
     dist_env_params = utils.config_parse('DISTRIBUTED_ENV')
     strategy = None

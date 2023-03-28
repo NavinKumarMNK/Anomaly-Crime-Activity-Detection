@@ -2,8 +2,8 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../../') not in sys.path:
-    sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 import utils.utils as utils
 
 # Import the required modules
@@ -16,9 +16,6 @@ import wandb
 import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
-from torchvision.models import efficientnet_b3
-
-import torch.nn as nn
 
 class SEAttention(nn.Module):
     def __init__(self, in_channels, reduction=16):
@@ -37,94 +34,8 @@ class SEAttention(nn.Module):
         y = self.fc(y).view(b, c, 1, 1)
         return x * y
     
+    
 class Decoder(nn.Module):
-    def __init__(self):
-        super(Decoder, self).__init__()
-
-        # Initial representation
-        self.fc = nn.Linear(1280, 4*4*768)
-        self.bn1d = nn.BatchNorm1d(4*4*768)
-        self.gelu = nn.GELU()
-
-        # Decoder layers
-        
-        self.conv1 = nn.ConvTranspose2d(768, 256, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn1 = nn.BatchNorm2d(256)
-        self.relu1 = nn.ReLU()
-
-        self.conv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.relu2 = nn.ReLU()
-
-        self.conv3 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn3 = nn.BatchNorm2d(64)
-        self.relu3 = nn.ReLU()
-
-        self.conv4 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn4 = nn.BatchNorm2d(32)
-        self.relu4 = nn.ReLU()
-
-        self.conv5 = nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn5 = nn.BatchNorm2d(32)
-        self.relu5 = nn.ReLU()
-
-        self.conv6 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn6 = nn.BatchNorm2d(16)
-        self.relu6 = nn.ReLU()
-
-
-        # Residual blocks with SE attention
-        self.res1 = nn.Sequential(
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.Sigmoid(),
-            SEAttention(32),
-            nn.ReLU()
-        )
-        
-        self.conv7 = nn.Conv2d(16, 3, kernel_size=1, stride=1, padding=0)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        x = self.fc(x)
-        x = self.bn1d(x)
-        x = self.gelu(x)
-        x = x.view(-1, 768, 4, 4)
-
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu2(x)
-
-        x = self.conv3(x)
-        x = self.bn3(x)
-        x = self.relu3(x)
-
-        x = self.conv4(x)
-        x = self.bn4(x)
-        x = self.relu4(x)
-
-        x = self.conv5(x)
-        x = self.bn5(x)
-        x = self.relu5(x)
-
-        x = self.res1(x) + x
-
-        x = self.conv6(x)
-        x = self.bn6(x)
-        x = self.relu6(x)
-
-        x = self.conv7(x)
-        x = self.sigmoid(x)
-
-        return x
-class DecoderLarge(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
 
@@ -180,7 +91,6 @@ class DecoderLarge(nn.Module):
             SEAttention(256),
             nn.ReLU()
         )
-
         
         self.conv7 = nn.Conv2d(32, 3, kernel_size=1, stride=1, padding=0)
         self.sigmoid = nn.Sigmoid()
@@ -226,12 +136,16 @@ class DecoderLarge(nn.Module):
         return x
     
 
-
-class EfficientNetb3Decoder(pl.LightningModule):
+class EfficientNetv2Decoder(pl.LightningModule):
     def __init__(self):
-        super(EfficientNetb3Decoder, self).__init__()
-        self.model = DecoderLarge()
-        
+        super(EfficientNetv2Decoder, self).__init__()
+        self.model = Decoder()
+        try:
+            self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetv2DecoderLarge.pt')
+            print("Decoder Weights Found")
+        except Exception as e:
+            torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetv2DecoderLarge.pt')
+
     def forward(self, x):
         return self.model(x)
 
@@ -243,7 +157,7 @@ class EfficientNetb3Decoder(pl.LightningModule):
         return loss
     
     def save_model(self):
-        torch.save(self.model.state_dict(), utils.ROOT_PATH + '/weights/EfficientNetb3DecoderLarge.pt')
+        torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetv2DecoderLarge.pt')
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -267,7 +181,7 @@ class EfficientNetb3Decoder(pl.LightningModule):
         return y_hat
 
 if __name__ == '__main__':
-    model = EfficientNetb3Decoder()
+    model = EfficientNetv2Decoder()
     print(model)
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)

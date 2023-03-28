@@ -9,4 +9,4 @@ lightning_logs
 .vscode
 wandb
 temp
-models/EfficientNetb3/AutoEncoder1.py
+models/EfficientNetv2/AutoEncoder1.py

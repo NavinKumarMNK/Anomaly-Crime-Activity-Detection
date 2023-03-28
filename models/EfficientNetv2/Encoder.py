@@ -2,8 +2,8 @@
 # Add the parent directory to the path
 import sys
 import os
-if os.path.abspath('../../') not in sys.path:
-    sys.path.append(os.path.abspath('../../'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 import utils.utils as utils
 
 # Import the required modules
@@ -16,23 +16,34 @@ import torch.nn as nn
 import tensorrt as trt
 import onnx
 from torchvision import models
+        
+
+class Encoder(pl.LightningModule):
+    def __init__(self):
+        super().__init__()
+        self.model = models.efficientnet_b3(include_top=False, pretrained=False)
+        self.model.classifier = nn.Identity()
+        
+    def forward(self, x):
+        return self.model(x)
 
 # Encoder
-class EfficientNetb3Encoder(pl.LightningModule):
+class EfficientNetv2Encoder(pl.LightningModule):
     def __init__(self):
-        super(EfficientNetb3Encoder, self).__init__()
-        self.file_path = utils.ROOT_PATH + '/weights/EfficientNetb3Encoder'
+        super(EfficientNetv2Encoder, self).__init__()
+        self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2Encoder'
         self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1280)
         self.save_hyperparameters()
+        self.model = Encoder()
         try:
-            print('model Found')
-            self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
+            self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetv2Encoder.pt')
+            print("Encoder Model Found")
         except Exception as e:
-            self.model = models.efficientnet_v2_m(include_top=False, weights='EfficientNet_V2_M_Weights.DEFAULT')
+            self.model = models.efficientnet_v2_s(include_top=False, weights='EfficientNet_V2_S_Weights.DEFAULT')
             self.model.classifier = nn.Identity()
-            torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetb3Encoder.pt')
-    
+            torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetv2Encoder.pt')
+
     def forward(self, x):
         return self.model(x)
 
@@ -71,9 +82,8 @@ class EfficientNetb3Encoder(pl.LightningModule):
 
     def finalize(self):
         self.save_model()
-
-        self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
         self.to_torchscript(self.file_path+'_script.pt', method='script', example_inputs=self.example_input_array)
+        self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
         self.to_tensorrt()
 
     def to_tensorrt(self):
@@ -93,7 +103,7 @@ class EfficientNetb3Encoder(pl.LightningModule):
                 f.write(engine.serialize())   
                 
 if __name__ == '__main__':
-    model = EfficientNetb3Encoder()
+    model = EfficientNetv2Encoder()
     print(model)
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)

@@ -12,20 +12,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader, random_split
+
 import cv2
 import PIL
 import numpy as np
 from utils.preprocessing import ImagePreProcessing
 
 class AutoEncoderDataset(Dataset):
-    def __init__(self, batch_size:int, num_workers:int,
+    def __init__(self, batch_size:int,
                     data_path, annotation_train) -> None:
         super(AutoEncoderDataset, self).__init__()
         self.data_path = data_path
         self.annotation_train = open(annotation_train, 
                                         'r').read().splitlines()
         self.batch_size = int(batch_size)
-        self.num_workers = int(num_workers)
+
         self.preprocessing = ImagePreProcessing()
 
         self.index = 0
@@ -38,13 +39,14 @@ class AutoEncoderDataset(Dataset):
         i=0
         while True:
             i+=1
+            if index+i >= len(self.annotation_train):
+                index = 0
             video_path = self.annotation_train[index+i]
             video_path = os.path.join(self.data_path, video_path) 
             
             cap = cv2.VideoCapture(video_path.strip())     
             count: int = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            print(count, i)
             if not (cap.isOpened() and cap.get(cv2.CAP_PROP_FRAME_COUNT) > 0):
                 continue
             
@@ -64,20 +66,24 @@ class AutoEncoderDataset(Dataset):
                     frame = np.transpose(frame, (2, 0, 1))
                     frame = self.preprocessing.transforms(torch.from_numpy(frame))
                     frame = self.preprocessing.preprocess(frame)
-                    original.append(frame)
-                    frame = self.preprocessing.augumentation(frame)
-                    frames.append(frame)
+                    framex = self.preprocessing.augumentation(frame)
+                    frames.append(framex)
+                    framey = self.preprocessing.improve(frame)
+                    original.append(framey)
+
 
             X = torch.stack(frames, dim=0)
-            y = torch.stack(original, dim=0)
-
+            y = torch.stack(frames, dim=0)
+            X = X
+            y = X
+            
             if(torch.isnan(X).any() or torch.isnan(y).any()):
                 print("reported")
                 continue
             else:
                 break
 
-        return X, y    
+        return X, y
     
 class AutoEncoderDataModule(pl.LightningDataModule):
     def __init__(self, batch_size:int, num_workers:int,
@@ -89,7 +95,7 @@ class AutoEncoderDataModule(pl.LightningDataModule):
         self.data_path = data_path
 
     def setup(self, stage=None):
-        full_dataset = AutoEncoderDataset(self.batch_size, self.num_workers,
+        full_dataset = AutoEncoderDataset(self.batch_size,
                                            self.data_path, self.annotation_train)
         train_size = int(0.8 * len(full_dataset))
         val_size = int(0.1 * len(full_dataset))
@@ -99,15 +105,15 @@ class AutoEncoderDataModule(pl.LightningDataModule):
         
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers,
-                           shuffle=True, drop_last=True, pin_memory=True)
+                           shuffle=True, drop_last=True, pin_memory=True) 
 
     def val_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers,
-                           shuffle=True, drop_last=True, pin_memory=True)
+                           shuffle=False, drop_last=True, pin_memory=True)
 
     def test_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers,
-                           shuffle=True, drop_last=True, pin_memory=True)
+                           shuffle=False, drop_last=True, pin_memory=True)
 
 if __name__ == '__main__':
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')
@@ -118,8 +124,8 @@ if __name__ == '__main__':
     dataset.setup()
     
     train_loader = dataset.train_dataloader()
-    from models.EfficientNetb3.AutoEncoder import AutoEncoder
-    model = AutoEncoder().to('cuda:0').half()
+    from models.EfficientNetv2.AutoEncoder import AutoEncoder
+    model = AutoEncoder()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     import time
     for i, (x, y) in enumerate(train_loader):

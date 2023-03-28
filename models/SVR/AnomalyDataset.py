@@ -15,7 +15,7 @@ import cv2
 import PIL
 import numpy as np
 from utils.preprocessing import ImagePreProcessing
-from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 
 class AnomalyDataset(Dataset):
     def __init__(self, data_path) -> None:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     dataset = AnomalyDataset(data_path='/data/')
     dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=True)
     store_path = utils.ROOT_PATH + '/data/svr.npy'
-    feature_extractor = EfficientNetb3Encoder().to('cuda')
+    feature_extractor = EfficientNetv2Encoder().to('cuda')
     
     print("hello")
     with torch.no_grad():

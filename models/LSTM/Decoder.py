@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 from torchvision import models
 import torchmetrics
 import tensorrt as trt
-from models.EfficientNetb3.Encoder import EfficientNetb3Encoder as Encoder
+from models.EfficientNetv2.Encoder import EfficientNetv2Encoder as Encoder
 # LRCN model
 
 class LSTMDecoder(pl.LightningModule):

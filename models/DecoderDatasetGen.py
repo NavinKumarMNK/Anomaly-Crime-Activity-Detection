@@ -6,7 +6,7 @@ if os.path.abspath('../') not in sys.path:
     sys.path.append(os.path.abspath('../'))
 import utils.utils as utils
 
-from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.SVR.SVRDetector import SVRDetector
 from utils.preprocessing import ImagePreProcessing
 
@@ -18,7 +18,7 @@ import numpy as np
 
 preprocessing = ImagePreProcessing()
 svr = SVRDetector()
-cnn = EfficientNetb3Encoder().to('cuda')
+cnn = EfficientNetv2Encoder().to('cuda')
 file = utils.ROOT_PATH + '/data/anomaly_train.txt'
 save_path = utils.ROOT_PATH + '/data/crime_activity.txt'
 

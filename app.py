@@ -16,11 +16,11 @@ print(app_params)
 
 from models.SVR.SVRDetector import SVRDetector
 from models.LSTM.Decoder import LSTMDecoder
-from models.EfficientNetb3.Encoder import EfficientNetb3Encoder
+from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from utils.preprocessing import ImagePreProcessing
 
 pre = ImagePreProcessing()
-encoder = EfficientNetb3Encoder().to(device)
+encoder = EfficientNetv2Encoder().to(device)
 anomaly_detector = SVRDetector()
 
 async def handle_websocket(websocket, path):
