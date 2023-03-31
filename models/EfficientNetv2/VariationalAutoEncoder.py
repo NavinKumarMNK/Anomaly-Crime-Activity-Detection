@@ -214,12 +214,10 @@ def train():
     device_monitor = DeviceStatsMonitor()
     checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/vae/',
                                             monitor="val_loss", mode='min', every_n_train_steps=100, save_top_k=1, save_last=True)
-    model_summary = ModelSummary(max_depth=5)
     refresh_rate = TQDMProgressBar(refresh_rate=10)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     callbacks = [
-        model_summary,
         refresh_rate,
         checkpoint_callback,
         early_stopping,
@@ -269,7 +267,6 @@ if __name__ == '__main__':
     logger = WandbLogger(project='CrimeDetection3', name='VariationalAutoEncoder')
     wandb.init()
     
-    from pytorch_lightning.callbacks import ModelSummary
     from pytorch_lightning.callbacks.progress import TQDMProgressBar
     from pytorch_lightning.callbacks import ModelCheckpoint
     from pytorch_lightning.callbacks import EarlyStopping

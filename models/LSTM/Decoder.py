@@ -10,12 +10,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from torchvision import models
 import torchmetrics
 import tensorrt as trt
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder as Encoder
-# LRCN model
 
+# Decoder model
 class LSTMDecoder(pl.LightningModule):
     def __init__(self, encoder_output_size:int=1280, hidden_size:int=768, 
                     num_layers:int=3, num_classes:int=14, is_train:bool=True) -> None:
@@ -28,9 +27,12 @@ class LSTMDecoder(pl.LightningModule):
         self.example_input_array = torch.rand(1, 1, self.encoder_output_size)
         self.example_output_array = torch.rand(1, num_classes)
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, hidden_size)
+        self.relu = nn.ReLU()
         self.fc1 = nn.Linear(hidden_size, 256)
         self.fc2 = nn.Linear(256, 64) 
         self.fc3 = nn.Linear(64, num_classes)
+        
         self.save_hyperparameters()
         self.reset_hidden()
         try:
@@ -39,30 +41,38 @@ class LSTMDecoder(pl.LightningModule):
             torch.save(self.lstm, utils.ROOT_PATH + '/weights/LSTMDecoder.pt')
 
     def init_hidden(self, batch_size):
-        h = torch.rand(self.num_layers, int(batch_size), self.hidden_size)
-        c = torch.rand(self.num_layers, int(batch_size), self.hidden_size)
+        h = torch.rand(self.num_layers, int(batch_size), self.hidden_size, device="cuda")
+        c = torch.rand(self.num_layers, int(batch_size), self.hidden_size, device="cuda")
         return h, c
 
     def reset_hidden(self, batch_size=1):
         self.hidden = self.init_hidden(batch_size)
 
-    def forward(self, x):
+    def forward(self, x:torch.Tensor, hidden=None):
         # x.shape: (batch_size, seq_size=1, input_size) -> predict
-        if self.is_train == False:
-            if self.hidden is None:
-                self.reset_hidden(batch_size=x.shape[0])
-            
-            self.h, self.c = self.hidden
-            out, (self.h, self.c) = self.lstm(x, (self.h, self.c))
-            out = self.fc3(self.fc2(self.fc1(out[:, -1, :]))) # only use the last timestep
-            return out
-        
         # x.shape: (batch_size, seq_size=n, input_size) -> train
-        if self.is_train == True:
-            out = self.lstm(x)
-            out = self.fc3(self.fc2(self.fc1(out[:, -1, :]))) # only use the last timestep
-            return out
 
+        if self.hidden is None:
+            self.reset_hidden(batch_size=x.shape[0])
+        
+        if hidden != None:
+            self.hidden = hidden
+
+        self.h, self.c = self.hidden 
+        out, (self.h, self.c) = self.lstm(x, (self.h, self.c))
+        print(out.shape, self.h.shape, self.c.shape)
+        out = self.fc3(
+            self.relu(
+            self.fc2(
+            self.relu(
+            self.fc1(
+            self.relu(
+            self.fc(out[:, -1, :]
+            ))))))) # only use the last timestep
+        print(out.shape, self.h.shape, self.c.shape, x.shape)
+        return out
+        
+        
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         return optimizer

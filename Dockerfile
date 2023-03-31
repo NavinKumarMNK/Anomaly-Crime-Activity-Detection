@@ -16,6 +16,7 @@ RUN mkdir ./temp
 
 WORKDIR /app/weights
 RUN gdown 'https://drive.google.com/u/0/uc?id=1qcgXiaAgdvSmvU3St9cJsguK6067KcjM&export=download' -O weights.zip
+
 RUN unzip weights.zip
 RUN rm weights.zip
 

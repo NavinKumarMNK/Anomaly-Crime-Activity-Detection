@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 import torch
 import cv2
 from utils import utils
+from utils.exceptions import VideoNotOpened, VideoTooShort
 import numpy as np
 from utils.preprocessing import ImagePreProcessing
 
@@ -32,23 +33,42 @@ class LSTMDataset(Dataset):
             try:
                 annotation = self.annotation[idx]
                 lst = annotation.split('  ')
-                video_path = self.data_path + lst[0]
+                video_path = self.data_path + lst[1]  + '/' + lst[0]
                 
+                print(annotation)
+
                 label = utils.label_parser(lst[1])
                 video = cv2.VideoCapture(video_path)
+                print(video_path, label)
+                if not (video.isOpened() and video.get(cv2.CAP_PROP_FRAME_COUNT) > 0):
+                    raise VideoNotOpened("Video is not opened or frame count is 0")
 
                 #sampling the frames
                 frames = []
 
-                if (video.get(cv2.CAP_PROP_FRAME_COUNT) < 127):
-                    print("Video is too short")
-                    continue
-                elif (video.get(cv2.CAP_PROP_FRAME_COUNT) / self.sample_rate < self.batch_size):
-                    self.sample_rate = int(video.get(cv2.CAP_PROP_FRAME_COUNT) / self.batch_size)
-
-                print(int(lst[2]), int(lst[3]), self.sample_rate)
-                count = 0
-                for i in range(int(lst[2]), int(lst[3]), self.sample_rate):
+                if (int(lst[2]) != -1):
+                    if (int(lst[3]) - int(lst[2]) < self.batch_size and int(lst[2]) != -1):
+                        raise VideoTooShort("Video is too short")
+                    
+                    elif (int(lst[3]) - int(lst[2]) / self.sample_rate < self.batch_size):
+                        self.sample_rate = int((int(lst[3]) - int(lst[2])) / self.batch_size)
+                    start = int(lst[2])
+                    end = int(lst[3])
+                else:
+                    start = 0
+                    end = start + self.batch_size * self.sample_rate
+                    if (end > int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
+                        end = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+                        if(end - start < self.batch_size):
+                            raise VideoTooShort("Video is too short")
+                            
+                        elif (end - start / self.sample_rate < self.batch_size):
+                            self.sample_rate = int((end - start) / self.batch_size)
+                
+                end = start + self.batch_size * self.sample_rate
+                count = 0             
+                
+                for i in range(start, end, self.sample_rate):
                     video.set(1, i)
                     ret, frame = video.read()
                     if ret:
@@ -61,10 +81,10 @@ class LSTMDataset(Dataset):
                         break
 
                 video.release()
-                video = torch.stack(frames)
-                label = torch.tensor(label)
-                print(video.shape)
-                print(label)
+                X = torch.stack(frames)
+                y = torch.tensor(label)
+                print(X.shape)
+                print(y)
                 break
 
             except Exception as e:
@@ -74,8 +94,8 @@ class LSTMDataset(Dataset):
                 idx += 1
                 continue
 
-        print(video.shape, label)
-        return video, label         
+        print(X.shape, y)
+        return X, y 
     
 class LSTMDatasetModule(pl.LightningDataModule):
     def __init__(self, num_workers:int,

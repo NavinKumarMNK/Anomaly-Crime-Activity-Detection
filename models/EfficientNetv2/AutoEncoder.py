@@ -41,7 +41,7 @@ class AutoEncoder(pl.LightningModule):
             x = self.decoder(x)
         except Exception as e:
             print(e, "Error!")
-            x = torch.rand(128, 3, 256, 256)
+            x = torch.rand(64, 3, 256, 256)
             x = self.encoder(x)
             x = self.decoder(x)
         return x
@@ -169,12 +169,10 @@ def train():
     device_monitor = DeviceStatsMonitor()
     checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/',
                                             monitor="val_loss", mode='min', every_n_train_steps=100, save_top_k=1, save_last=True)
-    model_summary = ModelSummary(max_depth=5)
     refresh_rate = TQDMProgressBar(refresh_rate=10)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     callbacks = [
-        model_summary,
         refresh_rate,
         checkpoint_callback,
         early_stopping,
@@ -225,7 +223,6 @@ if __name__ == '__main__':
     logger = WandbLogger(project='CrimeDetection2', name='AutoEncoder')
     wandb.init()
     
-    from pytorch_lightning.callbacks import ModelSummary
     from pytorch_lightning.callbacks.progress import TQDMProgressBar
     from pytorch_lightning.callbacks import ModelCheckpoint
     from pytorch_lightning.callbacks import EarlyStopping

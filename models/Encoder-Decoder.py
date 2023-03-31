@@ -25,7 +25,7 @@ class EncoderDecoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(EncoderDecoder, self).__init__()
-        self.example_input_array = torch.rand(1, 3, 256, 256)
+        self.example_input_array = torch.rand(32, 3, 256, 256)
         self.save_hyperparameters()
         self.encoder = EfficientNetv2Encoder()
         # encoder is freeze no change in weights
@@ -39,22 +39,18 @@ class EncoderDecoder(pl.LightningModule):
         x = self.encoder(x)
         print(x.shape)
         x = self.decoder(x.unsqueeze(0))
-        print(x.shape)
         return x
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        print(x.shape, y.shape)
         y_hat = self(x.squeeze(0))
         loss = nn.CrossEntropyLoss()(y_hat, y)
         self.log('train_loss', loss)
         return {"loss" : loss}
 
     def training_epoch_end(self, outputs):
-        loss, y_hat, y = outputs["loss"], outputs["y_hat"], outputs["y"]
-        avg_loss = torch.stack([x['loss'] for x in loss]).mean()
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('train/loss_epoch', avg_loss)
-        self.log('train/acc_epoch', torchmetrics.functional.accuracy(y_hat, y))
         
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -80,11 +76,10 @@ class EncoderDecoder(pl.LightningModule):
             self.best_val_loss = avg_loss
             self.save_model()
 
-
     def save_model(self):
         self.decoder.save_model()
-        artifact = wandb.Artifact('lrcn_model.cpkt', type='model')
-        wandb.run.log_artifact(artifact)
+        artifact = wandb.Artifact('encoder-deocder.cpkt', type='model')
+        artifact.add_file(utils.ROOT_PATH + '/weights/checkpoints/encoder-decoder/last.ckpt')
 
     def print_params(self): 
         print("Model Parameters:")
@@ -113,11 +108,11 @@ class EncoderDecoder(pl.LightningModule):
         return y_hat
     
 if __name__ == '__main__' :
-    from pytorch_lightning.loggers import WandbLogger
-    logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
+    #from pytorch_lightning.loggers import WandbLogger
+    #logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
 
     import wandb
-    wandb.init()
+    #wandb.init()
     import ray
     
     #ray.init(runtime_env={"working_dir": utils.ROOT_PATH})
@@ -127,7 +122,6 @@ if __name__ == '__main__' :
     dataset.setup()
     print(len(dataset.full_dataset))
 
-    from pytorch_lightning.callbacks import ModelSummary
     from pytorch_lightning.callbacks.progress import TQDMProgressBar
     from pytorch_lightning.callbacks import ModelCheckpoint
     from pytorch_lightning.callbacks import EarlyStopping
@@ -138,11 +132,10 @@ if __name__ == '__main__' :
     checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + 
                       '/weights/checkpoints/encoder-decoder/', monitor="val_loss", 
                       mode='min', every_n_train_steps=100, save_top_k=1, save_last=True)
-    model_summary = ModelSummary(max_depth=3)
+    
     refresh_rate = TQDMProgressBar(refresh_rate=10)
 
     callbacks = [
-        model_summary,
         refresh_rate,
         checkpoint_callback,
         early_stopping,
@@ -165,7 +158,7 @@ if __name__ == '__main__' :
                                         use_gpu=dist_env_params['use_gpu'])
     trainer = pl.Trainer(**ed_params, 
                     callbacks=callbacks, 
-                    logger=logger,
+                    #logger=logger,
                     #strategy=strategy
                     accelerator='gpu',
                     num_sanity_val_steps=0,
