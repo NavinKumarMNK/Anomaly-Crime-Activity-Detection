@@ -28,13 +28,13 @@ class EncoderDecoder(pl.LightningModule):
         self.save_hyperparameters()
         self.encoder = EfficientNetv2Encoder()
         # encoder is freeze no change in weights
-        for param in self.encoder.parameters():
-            param.requires_grad = False
+        #for param in self.encoder.parameters():
+        #    param.requires_grad = False
         self.decoder = LSTMDecoder()
     
     def forward(self, x):
-        with torch.no_grad():
-            x = self.encoder(x)
+        #with torch.no_grad():
+        x = self.encoder(x)
         x = self.decoder(x.unsqueeze(0))
         return x
 
@@ -108,11 +108,11 @@ class EncoderDecoder(pl.LightningModule):
         return y_hat
     
 if __name__ == '__main__' :
-    #from pytorch_lightning.loggers import WandbLogger
-    #logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
+    from pytorch_lightning.loggers import WandbLogger
+    logger = WandbLogger(project='CrimeDetection', name='Encoder-Decoder')
 
-    #import wandb
-    #wandb.init()
+    import wandb
+    wandb.init()
     import ray
     
     #ray.init(runtime_env={"working_dir": utils.ROOT_PATH})
@@ -131,7 +131,9 @@ if __name__ == '__main__' :
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=5)
     device_monitor = DeviceStatsMonitor()
-    checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/')
+    checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + 
+                      '/weights/checkpoints/encoder-decoder/', monitor="val_loss", 
+                      mode='min', every_n_train_steps=100, save_top_k=1, save_last=True)
     model_summary = ModelSummary(max_depth=3)
     refresh_rate = TQDMProgressBar(refresh_rate=10)
 
@@ -159,9 +161,11 @@ if __name__ == '__main__' :
                                         use_gpu=dist_env_params['use_gpu'])
     trainer = pl.Trainer(**ed_params, 
                     callbacks=callbacks, 
-                    #logger=logger,
+                    logger=logger,
                     #strategy=strategy
-                    accelerator='gpu')
+                    accelerator='gpu',
+                    num_sanity_val_steps=0,
+                    log_every_n_steps=5)
     
     '''
     trainer = Trainer(**autoencoder_params, 

@@ -21,9 +21,9 @@ from torchvision import models
 class Encoder(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = models.efficientnet_b3(include_top=False, pretrained=False)
+        self.model = models.efficientnet_v2_s(include_top=False, weights=None)
         self.model.classifier = nn.Identity()
-        
+       
     def forward(self, x):
         return self.model(x)
 
@@ -35,12 +35,11 @@ class EfficientNetv2Encoder(pl.LightningModule):
         self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1280)
         self.save_hyperparameters()
-        self.model = Encoder()
         try:
             self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetv2Encoder.pt')
             print("Encoder Model Found")
         except Exception as e:
-            self.model = models.efficientnet_v2_s(include_top=False, weights='EfficientNet_V2_S_Weights.DEFAULT')
+            self.model = models.efficientnet_v2_s(include_top=False, weights=None)
             self.model.classifier = nn.Identity()
             torch.save(self.model, utils.ROOT_PATH + '/weights/EfficientNetv2Encoder.pt')
 

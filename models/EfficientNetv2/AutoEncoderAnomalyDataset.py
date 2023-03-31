@@ -69,23 +69,14 @@ class AnomalyDataset(Dataset):
                     frame = np.transpose(frame, (2, 0, 1))
                     frame = self.preprocessing.transforms(torch.from_numpy(frame))
                     frame = self.preprocessing.preprocess(frame)
-                    framex = self.preprocessing.augumentation(frame)
-                    frames.append(framex)
-                    framey = self.preprocessing.improve(frame)
-                    original.append(framey)
+                    #framex = self.preprocessing.augumentation(frame)
+                    #frames.append(framex)
+                    #framey = self.preprocessing.improve(framex)
+                    original.append(frame)
 
-            if True:
-            	# convert 5d [1, 4, 3, 256 ,256] to [4, 3, 256, 256] in torch
-                X = torch.stack(frames, dim=0)
-                y = X.clone()
-                break
-            '''
-            else:
-                if (idx + 1 == len(self.annotation)):
-                    idx = 0
-                else:
-                    idx +=1
-            '''
+            X = torch.stack(original, dim=0)
+            y = torch.stack(original, dim=0)
+            break
         return X, y
         
 

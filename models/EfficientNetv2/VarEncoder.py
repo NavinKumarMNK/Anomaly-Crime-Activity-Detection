@@ -60,8 +60,8 @@ class EfficientnetV2VarEncoder(pl.LightningModule):
     
     def save_model(self):
         torch.save(self, utils.ROOT_PATH + '/weights/' + 'VE.pt')
-        torch.save(self.fc_mu.state_dict(), 'fc_mu.pth')
-        torch.save(self.fc_var.state_dict(), 'fc_var.pth')
+        torch.save(self.fc_mu.state_dict(), utils.ROOT_PATH + '/weights/' + 'fc_mu.pth')
+        torch.save(self.fc_var.state_dict(), utils.ROOT_PATH + '/weights/' + 'fc_var.pth')
     
     def finalize(self):
         self.save_model()
@@ -78,6 +78,8 @@ class EfficientnetV2VarEncoder(pl.LightningModule):
             
             config = builder.create_builder_config()
             config.set_flag(trt.BuilderFlag.FP16)
+           
+            config.max_workspace_size = 4*1024*1024*1024            
 
             network.get_input(0).shape = [1, 3, 256, 256]
             engine = builder.build_serialized_network(network, config)
@@ -86,7 +88,7 @@ class EfficientnetV2VarEncoder(pl.LightningModule):
                 f.write(engine.serialize())   
 
 if __name__ == '__main__':
-    model = EfficientNetv2Encoder()
+    model = EfficientnetV2VarEncoder()
     print(model)
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)

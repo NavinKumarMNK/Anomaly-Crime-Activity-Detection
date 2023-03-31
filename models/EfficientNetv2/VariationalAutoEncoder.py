@@ -25,7 +25,7 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 import tensorrt as trt
 
-pl.seed_everything(42)
+pl.seed_everything(34)
     
 class VariationalAutoEncoder(pl.LightningModule):
     def __init__(self, 
@@ -36,7 +36,8 @@ class VariationalAutoEncoder(pl.LightningModule):
         self.encoder = EfficientnetV2VarEncoder()
         self.decoder = EfficientNetv2Decoder()
         self.latent_dim = 1280
-
+        self.beta = 0
+        
     def forward(self, x):
         try:
             mu, var = self.encoder(x)
@@ -44,7 +45,7 @@ class VariationalAutoEncoder(pl.LightningModule):
             x = self.decoder(z)
         except Exception as e:
             print(e, "Error!")
-            x = torch.rand(64, 3, 256, 256)
+            x = torch.rand(32, 3, 256, 256)
             mu, var = self.encoder(x)
             z = self.encoder.reparameterize(mu, var)
             x = self.decoder(z)
@@ -52,17 +53,27 @@ class VariationalAutoEncoder(pl.LightningModule):
         return x, mu, var
 
     def loss_function(self, recon_x, x, mu, logvar):
-        BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
+        MSE = F.mse_loss(recon_x, x)
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        return BCE + KLD
+        if self.beta > 1:
+            self.beta = 1
+        self.log("loss/mse_loss", MSE)
+        self.log("loss/kld_loss", KLD)
+        self.log("losss/beta", self.beta)
+        self.log("Total", self.beta*KLD + MSE)
+        return self.beta*KLD + MSE
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        self.beta += 0.00001
         x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
         y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
+        print(x_hat.shape)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('train_loss', loss)
+        if batch_idx % 1000 == 0:
+            self.log_image(x, x_hat, y)
         return {"loss" : loss}
 
     def training_epoch_end(self, outputs)-> None:
@@ -80,6 +91,8 @@ class VariationalAutoEncoder(pl.LightningModule):
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('val_loss', loss)
+        if batch_idx % 100 == 0:
+            self.log_image(x, x_hat, y) 
         return {"val_loss": loss, "y_hat": x_hat, "y": y}
 
     def validation_epoch_end(self, outputs)-> None:
@@ -128,6 +141,30 @@ class VariationalAutoEncoder(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
         return y_hat
+
+    def log_image(self, x, x_hat, y):
+        x = (x + 1) / 2
+        x_hat = (x_hat + 1) / 2
+        y = (y + 1) / 2
+
+        x = x.to('cuda')
+        x_hat = x_hat.to('cuda')
+        y = y.to('cuda')
+
+        # Apply inverse normalization to convert back to RGB
+        mean = torch.tensor([0.485, 0.456, 0.406]).reshape(1, -1, 1, 1).to('cuda')
+        std = torch.tensor([0.229, 0.224, 0.225]).reshape(1, -1, 1, 1).to('cuda')
+        x = (x * std + mean).clamp(0, 1)
+        x_hat = (x_hat * std + mean).clamp(0, 1)
+        y = (y * std + mean).clamp(0, 1)
+
+        # Log input, output, and target images
+        self.logger.experiment.log({
+                'input_images': [wandb.Image(x[0])],
+                'output_images': [wandb.Image(x_hat[0])],
+                'target_images': [wandb.Image(y[0])],
+        })
+
 
 class CUDACallback(Callback):
     def on_train_epoch_start(self, trainer, pl_module):
@@ -221,10 +258,9 @@ def train():
                 log_every_n_steps=5
                 )
     
-    try:
-        trainer.fit(model, dataset)
-    except Exception as e:
-        model.save_model()
+    
+    trainer.fit(model, dataset)
+    model.save_model()
    
     model.encoder.finalize()
 

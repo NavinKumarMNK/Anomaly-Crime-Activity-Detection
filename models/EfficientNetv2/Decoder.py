@@ -93,7 +93,7 @@ class Decoder(nn.Module):
         )
         
         self.conv7 = nn.Conv2d(32, 3, kernel_size=1, stride=1, padding=0)
-        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = self.fc(x)
@@ -131,7 +131,7 @@ class Decoder(nn.Module):
         x = self.relu6(x)
 
         x = self.conv7(x)
-        x = self.sigmoid(x)
+        x = self.tanh(x)
 
         return x
     
