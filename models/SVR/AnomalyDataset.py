@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from torch.utils.data import Dataset, DataLoader, TensorDataset
+from torch.utils.data import Dataset, DataLoader, random_split
 import cv2
 import PIL
 import numpy as np
@@ -18,89 +18,127 @@ from utils.preprocessing import ImagePreProcessing
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 
 class AnomalyDataset(Dataset):
-    def __init__(self, data_path) -> None:
+    def __init__(self, batch_size:int,
+                    data_path, annotation) -> None:
         super(AnomalyDataset, self).__init__()
-        self.data_path = utils.ROOT_PATH + data_path
-        self.annotation = open(self.data_path+"anomaly_test.txt", 
+        self.data_path = data_path
+        self.annotation = open(self.data_path + annotation, 
                                         'r').read().splitlines()
+        self.batch_size = int(batch_size)
+
         self.preprocessing = ImagePreProcessing()
+
+        self.index = 0
         
     def __len__(self): 
         return len(self.annotation)
     
     def __getitem__(self, idx):
-        try:
-            string = self.annotation[idx]
-            lst = string.split('  ')
-            print(lst)
-            label = float(utils.label_parser(lst[1]))
-            start, end = int(lst[2]), int(lst[3])
-            start2, end2 = int(lst[4]), int(lst[5])
-            video_path = lst[0]
-            video_path = os.path.join(self.data_path, lst[1], video_path) 
-            print(video_path)
-            cap = cv2.VideoCapture(video_path.strip())
-            if not cap.isOpened():
-                print("Error opening video stream or file")
+        while True:
+            try:
+                string = self.annotation[idx]
+                lst = string.split('  ')
+                print(lst)
+                label = float(utils.label_parser(lst[1]))
+                start, end = int(lst[2]), int(lst[3])
+                start2, end2 = int(lst[4]), int(lst[5])
+                video_path = lst[0]
+                video_path = os.path.join(self.data_path, lst[1], video_path) 
+                print(video_path)
+                cap = cv2.VideoCapture(video_path.strip())
+                if not cap.isOpened():
+                    print("Error opening video stream or file")
 
-            frame_no = []
-            labels = []
-            frames = []
-            if start == -1:
-                print(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
-                frame_no = np.random.randint(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), 128)
-                for i in range(128):
-                    labels.append(0)
-            elif start2 != -1:
-                frame_no = np.random.randint(start, end, 32)
-                for i in range(32):
-                    labels.append(1)
-                frame_no = np.append(frame_no, np.random.randint(start2, end2, 32))
-                for i in range(32):
-                    labels.append(1)
-                frame_no = np.append(frame_no, np.random.randint(0, start, 1))
-                for i in range(32):
-                    labels.append(0)
-                frame_no = np.append(frame_no, np.random.randint(end, start2, 32))
-                for i in range(32):
-                    labels.append(0)
-            elif start2 == -1:
-                frame_no = np.random.randint(start, end, 64)
-                for i in range(64):
-                    labels.append(1)
-                frame_no = np.append(frame_no, np.random.randint(0, start, 64))
-                for i in range(64):
-                    labels.append(0)
+                frame_no = []
+                labels = []
+                frames = []
+                if start == -1:
+                    print(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+                    frame_no = np.random.randint(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), self.batch_size)
+                    for i in range(self.batch_size):
+                        labels.append(label)
+                elif start2 != -1:
+                    frame_no = np.random.randint(start, end, self.batch_size / 4)
+                    for i in range(self.batch_size / 4):
+                        labels.append(1)
+                    frame_no = np.append(frame_no, np.random.randint(start2, end2, self.batch_size / 4))
+                    for i in range(self.batch_size / 4):
+                        labels.append(1)
+                    frame_no = np.append(frame_no, np.random.randint(0, start, 1))
+                    for i in range(self.batch_size / 4):
+                        labels.append(1)
+                    frame_no = np.append(frame_no, np.random.randint(end, start2, 32))
+                    for i in range(self.batch_size / 4):
+                        labels.append(1)
+                elif start2 == -1:
+                    frame_no = np.random.randint(start, end, self.batch_size / 2)
+                    for i in range(self.batch_size / 2):
+                        labels.append(1)
+                    frame_no = np.append(frame_no, np.random.randint(0, start, self.batch_size / 2))
+                    for i in range(self.batch_size / 2):
+                        labels.append(0)
 
-            for frame in frame_no:
-                cap.set(1, frame)
-                ret, frame = cap.read()
-                if ret:
-                    frame = np.transpose(frame, (2, 0, 1))
-                    frame = self.preprocessing.transforms(torch.from_numpy(frame))
-                    frame = self.preprocessing.preprocess(frame)
-                    frame = self.preprocessing.augumentation(frame)
-                    frames.append(frame)
+                for frame in frame_no:
+                    cap.set(1, frame)
+                    ret, frame = cap.read()
+                    if ret:
+                        frame = np.transpose(frame, (2, 0, 1))
+                        frame = self.preprocessing.transforms(torch.from_numpy(frame))
+                        frame = self.preprocessing.preprocess(frame)
+                        frame = self.preprocessing.augumentation(frame)
+                        frames.append(frame)
 
-            labels = np.array(labels, dtype=np.float32)
-            # convert 5d [1, 4, 3, 256 ,256] to [4, 3, 256, 256] in torch
-            X = torch.stack(frames, dim=0)
-            print(X.shape)
-            return X, labels
-        except Exception as e:
-            print(e)
-            return None, None        
+                labels = np.array(labels, dtype=np.float32)
+                # convert 5d [1, 4, 3, 256 ,256] to [4, 3, 256, 256] in torch
+                X = torch.stack(frames, dim=0)
+                print(X.shape)
+                break
+            except Exception as e:
+                if (idx >= len(self.annotation)):
+                    idx = 0
+                print(e)
+                idx += 1
+        return X, labels         
+        
+class AnomalyDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size:int, num_workers:int,
+                    data_path, annotation):
+        super(AnomalyDataModule, self).__init__()
+        self.annotation = annotation
+        self.batch_size = int(batch_size)
+        self.num_workers = int(num_workers)
+        self.data_path = data_path
+        self.full_dataset = AnomalyDataset(self.batch_size,
+                                           self.data_path, self.annotation)
+    
+    def setup(self, stage=None):    
+        train_size = int(0.8 * len(self.full_dataset))
+        val_size = int(0.1 * len(self.full_dataset))
+        test_size = len(self.full_dataset) - train_size - val_size
+        self.train_dataset, self.val_dataset, self.test_dataset = random_split(
+            self.full_dataset, [train_size, val_size, test_size])
+        
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers, shuffle=True)
+    
+    def val_dataloader(self):
+        return DataLoader(self.test_dataset, batch_size=1, num_workers=self.num_workers, shuffle=False)
+    
+    def test_dataloader(self):
+        return DataLoader(self.test_dataset, batch_size=1, num_workers=self.num_workers, shuffle=False)
         
 if __name__ == '__main__':
-    dataset = AnomalyDataset(data_path='/data/')
-    dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=True)
+    dataset_params = utils.config_parse('ANOMALY_DATASET')    
+    dataset = AnomalyDataModule(**dataset_params)
+    dataset.setup()
+    print(len(dataset.full_dataset))
     store_path = utils.ROOT_PATH + '/data/svr.npy'
     feature_extractor = EfficientNetv2Encoder().to('cuda')
     
     print("hello")
     with torch.no_grad():
         feature_extractor.eval()
-        for i, (X, labels) in enumerate(dataloader):
+        for i, (X, labels) in enumerate(dataset.train_dataloader()):
             X = X.to('cuda').squeeze(0)
 
             X = feature_extractor(X)

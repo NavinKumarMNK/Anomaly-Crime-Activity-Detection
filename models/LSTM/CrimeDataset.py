@@ -1,32 +1,39 @@
-"@Author: NavinKumarMNK"
+'@Author:NavinKumarMNK'
+# Add the parent directory to the path
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+import utils.utils as utils
 
-from torch.utils.data import DataLoader, Dataset, random_split
-import pytorch_lightning as pl
+# Import the required modules
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import pytorch_lightning as pl
+from torch.utils.data import Dataset, DataLoader, random_split
 import cv2
-from utils import utils
+import PIL
 import numpy as np
 from utils.preprocessing import ImagePreProcessing
+from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 
-class LSTMDataset(Dataset):
-    def __init__(self, annotation:str,
-                        data_dir_path:str, num_workers:int,
-                        sample_rate:int
-                        ):
-        super(LSTMDataset, self).__init__() 
-        self.data_path = utils.DATA_PATH + data_dir_path 
-        self.annotation = open(self.data_path + annotation, 'r').read().splitlines()
-        self.num_workers = num_workers
+class CrimeDataset(Dataset):
+    def __init__(self, batch_size:int,
+                    data_path, annotation, sample_rate) -> None:
+        super(CrimeDataset, self).__init__()
+        self.data_path = data_path
+        self.annotation = open(self.data_path + annotation, 
+                                        'r').read().splitlines()
+        self.batch_size = int(batch_size)
+
         self.preprocessing = ImagePreProcessing()
         self.global_sample_rate = self.sample_rate = sample_rate
-
-    def __len__(self):
+        self.index = 0
+        
+    def __len__(self): 
         return len(self.annotation)
     
-    def __getitem__(self, index:int):
+    def __getitem__(self, idx):
         while True:
             self.sample_rate = self.global_sample_rate
             try:
@@ -76,41 +83,36 @@ class LSTMDataset(Dataset):
 
         print(video.shape, label)
         return video, label         
-    
-class LSTMDatasetModule(pl.LightningDataModule):
-    def __init__(self, num_workers:int,
-                    data_path, annotation, sample_rate) -> None:
-        super(LSTMDatasetModule, self).__init__()
+        
+class CrimeDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size:int, num_workers:int,
+                    data_path, annotation, sample_rate):
+        super(CrimeDataModule, self).__init__()
         self.annotation = annotation
+        self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
         self.data_path = data_path
-        self.sample_rate = sample_rate
-
-    def setup(self, stage=None):
-        self.dataset = LSTMDataset(num_workers=self.num_workers,
-                                           data_dir_path=self.data_path, annotation=self.annotation,
-                                           sample_rate=self.sample_rate)
-        train_size = int(0.8 * len(self.dataset))
-        val_size = int(0.1 * len(self.dataset))
-        test_size = len(self.dataset) - train_size - val_size
+        self.full_dataset = CrimeDataset(self.batch_size,
+                                           self.data_path, self.annotation, sample_rate)
+    
+    def setup(self, stage=None):    
+        train_size = int(0.8 * len(self.full_dataset))
+        val_size = int(0.1 * len(self.full_dataset))
+        test_size = len(self.full_dataset) - train_size - val_size
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(
-            self.dataset, [train_size, val_size, test_size])
+            self.full_dataset, [train_size, val_size, test_size])
         
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers, shuffle=True)
-
+    
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=1, num_workers=self.num_workers, shuffle=True)
-
+        return DataLoader(self.test_dataset, batch_size=1, num_workers=self.num_workers, shuffle=False)
+    
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=1, num_workers=self.num_workers, shuffle=True)
-
-
-if __name__ == "__main__":
-    data = LSTMDatasetModule(**utils.config_parse(
-                'LSTM_DATASET'))
-    data.setup()
-    train_loader = data.train_dataloader()
-    for i, (video, label) in enumerate(train_loader):
-        print(video.shape)
-        print(label)
+        return DataLoader(self.test_dataset, batch_size=1, num_workers=self.num_workers, shuffle=False)
+        
+if __name__ == '__main__':
+    dataset_params = utils.config_parse('CRIME_DATASET')    
+    dataset = CrimeDataModule(**dataset_params)
+    dataset.setup()
+    print(len(dataset.full_dataset))

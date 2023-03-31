@@ -28,7 +28,9 @@ class LSTMDecoder(pl.LightningModule):
         self.example_input_array = torch.rand(1, 1, self.encoder_output_size)
         self.example_output_array = torch.rand(1, num_classes)
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, num_classes)
+        self.fc1 = nn.Linear(hidden_size, 256)
+        self.fc2 = nn.Linear(256, 64) 
+        self.fc3 = nn.Linear(64, num_classes)
         self.save_hyperparameters()
         self.reset_hidden()
         try:
@@ -52,13 +54,13 @@ class LSTMDecoder(pl.LightningModule):
             
             self.h, self.c = self.hidden
             out, (self.h, self.c) = self.lstm(x, (self.h, self.c))
-            out = self.fc(out[:, -1, :]) # only use the last timestep
+            out = self.fc3(self.fc2(self.fc1(out[:, -1, :]))) # only use the last timestep
             return out
         
         # x.shape: (batch_size, seq_size=n, input_size) -> train
         if self.is_train == True:
             out = self.lstm(x)
-            out = self.fc(out[0][:, -1, :]) # only use the last timestep
+            out = self.fc3(self.fc2(self.fc1(out[:, -1, :]))) # only use the last timestep
             return out
 
     def configure_optimizers(self):

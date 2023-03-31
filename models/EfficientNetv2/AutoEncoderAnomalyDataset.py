@@ -18,11 +18,11 @@ from utils.preprocessing import ImagePreProcessing
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 
 class AnomalyDataset(Dataset):
-    def __init__(self, data_path, batch_size, annotation_train) -> None:
+    def __init__(self, data_path, batch_size, annotation) -> None:
         super(AnomalyDataset, self).__init__()
         self.data_path = data_path
         self.batch_size = batch_size
-        self.annotation = open(annotation_train,
+        self.annotation = open(annotation,
                                         'r').read().splitlines()
         self.preprocessing = ImagePreProcessing()
 
@@ -82,9 +82,9 @@ class AnomalyDataset(Dataset):
 
 class AnomalyDataModule(pl.LightningDataModule):
     def __init__(self, batch_size:int, num_workers:int,
-                    data_path, annotation_train) -> None:
+                    data_path, annotation) -> None:
         super(AnomalyDataModule, self).__init__()
-        self.annotation_train = annotation_train
+        self.annotation = annotation
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
         self.data_path = data_path
@@ -92,7 +92,7 @@ class AnomalyDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         full_dataset = AnomalyDataset(batch_size=self.batch_size,
                                            data_path=self.data_path,
-                                           annotation_train=self.annotation_train)
+                                           annotation=self.annotation)
         train_size = int(0.8 * len(full_dataset))
         val_size = int(0.1 * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
@@ -114,10 +114,10 @@ class AnomalyDataModule(pl.LightningDataModule):
 
 if __name__ == '__main__':
     dataset_params = utils.config_parse('ANOMALY_DATASET')
-    annotation_train = utils.dataset_image_autoencoder(
+    annotation = utils.dataset_image_autoencoder(
                             dataset_params['data_path'])
     dataset = AnomalyDataModule(**dataset_params, 
-                    annotation_train=annotation_train)
+                    annotation=annotation)
     dataset.setup()
     train_loader = dataset.train_dataloader()
     for i, (x, y) in enumerate(train_loader):

@@ -158,10 +158,10 @@ def train():
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')
 
 
-    annotation_train = utils.dataset_image_autoencoder(
+    annotation = utils.dataset_image_autoencoder(
                             dataset_params['data_path'], "anomaly_test.txt")
     dataset = AutoEncoderDataModule(**dataset_params, 
-                    annotation_train=annotation_train)
+                    annotation=annotation)
 
     dataset.setup()
     

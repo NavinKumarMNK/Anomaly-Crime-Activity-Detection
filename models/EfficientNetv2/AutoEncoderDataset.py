@@ -20,10 +20,10 @@ from utils.preprocessing import ImagePreProcessing
 
 class AutoEncoderDataset(Dataset):
     def __init__(self, batch_size:int,
-                    data_path, annotation_train) -> None:
+                    data_path, annotation) -> None:
         super(AutoEncoderDataset, self).__init__()
         self.data_path = data_path
-        self.annotation_train = open(annotation_train, 
+        self.annotation = open(annotation, 
                                         'r').read().splitlines()
         self.batch_size = int(batch_size)
 
@@ -32,16 +32,16 @@ class AutoEncoderDataset(Dataset):
         self.index = 0
 
     def __len__(self):
-        return len(self.annotation_train)
+        return len(self.annotation)
 
     def __getitem__(self, index:int):
         
         i=0
         while True:
             i+=1
-            if index+i >= len(self.annotation_train):
+            if index+i >= len(self.annotation):
                 index = 0
-            video_path = self.annotation_train[index+i]
+            video_path = self.annotation[index+i]
             video_path = os.path.join(self.data_path, video_path) 
             
             cap = cv2.VideoCapture(video_path.strip())     
@@ -87,16 +87,16 @@ class AutoEncoderDataset(Dataset):
     
 class AutoEncoderDataModule(pl.LightningDataModule):
     def __init__(self, batch_size:int, num_workers:int,
-                    data_path, annotation_train) -> None:
+                    data_path, annotation) -> None:
         super(AutoEncoderDataModule, self).__init__()
-        self.annotation_train = annotation_train
+        self.annotation = annotation
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
         self.data_path = data_path
 
     def setup(self, stage=None):
         full_dataset = AutoEncoderDataset(self.batch_size,
-                                           self.data_path, self.annotation_train)
+                                           self.data_path, self.annotation)
         train_size = int(0.8 * len(full_dataset))
         val_size = int(0.1 * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
@@ -117,10 +117,10 @@ class AutoEncoderDataModule(pl.LightningDataModule):
 
 if __name__ == '__main__':
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')
-    annotation_train = utils.dataset_image_autoencoder(
+    annotation = utils.dataset_image_autoencoder(
                             dataset_params['data_path'])
     dataset = AutoEncoderDataModule(**dataset_params, 
-                    annotation_train=annotation_train)
+                    annotation=annotation)
     dataset.setup()
     
     train_loader = dataset.train_dataloader()

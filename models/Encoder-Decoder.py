@@ -19,12 +19,13 @@ from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.LSTM.Decoder import LSTMDecoder
 import ray_lightning as rl
 from models.LSTM.LSTMDataset import LSTMDatasetModule
+from models.LSTM.CrimeDataset import CrimeDataModule
 
 class EncoderDecoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(EncoderDecoder, self).__init__()
-        self.example_input_array = torch.zeros(1, 3, 256, 256)
+        self.example_input_array = torch.rand(1, 3, 256, 256)
         self.save_hyperparameters()
         self.encoder = EfficientNetv2Encoder()
         # encoder is freeze no change in weights
@@ -34,12 +35,16 @@ class EncoderDecoder(pl.LightningModule):
     
     def forward(self, x):
         #with torch.no_grad():
+        print(x.shape)
         x = self.encoder(x)
+        print(x.shape)
         x = self.decoder(x.unsqueeze(0))
+        print(x.shape)
         return x
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        print(x.shape, y.shape)
         y_hat = self(x.squeeze(0))
         loss = nn.CrossEntropyLoss()(y_hat, y)
         self.log('train_loss', loss)
@@ -117,11 +122,10 @@ if __name__ == '__main__' :
     
     #ray.init(runtime_env={"working_dir": utils.ROOT_PATH})
     
-    dataset_params = utils.config_parse('LSTM_DATASET')
-
-    dataset = LSTMDatasetModule(**dataset_params)
+    dataset_params = utils.config_parse('CRIME_DATASET')    
+    dataset = CrimeDataModule(**dataset_params)
     dataset.setup()
-    
+    print(len(dataset.full_dataset))
 
     from pytorch_lightning.callbacks import ModelSummary
     from pytorch_lightning.callbacks.progress import TQDMProgressBar
@@ -166,15 +170,6 @@ if __name__ == '__main__' :
                     accelerator='gpu',
                     num_sanity_val_steps=0,
                     log_every_n_steps=5)
-    
-    '''
-    trainer = Trainer(**autoencoder_params, 
-                    callbacks=callbacks, 
-                    strategy='deepspeed',
-                    accelerator='gpu',
-                    num_nodes=6,
-                    )
-    '''
 
     trainer.fit(model, dataset)
 

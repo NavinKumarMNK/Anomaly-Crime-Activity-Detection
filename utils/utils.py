@@ -3,8 +3,8 @@ import torch
 import configparser
 import os
 
-ROOT_PATH = '/home/windows/Video-Detection'
-DATA_PATH = '/home/windows/Data/data'
+ROOT_PATH = '/mnt/nfs_share/nfs_share/Video-Detection'
+DATA_PATH = '/mnt/nfs_share/nfs_share/Data/data'
 
 def current_path():
     return os.path.abspath('./')
