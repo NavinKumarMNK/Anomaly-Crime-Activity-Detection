@@ -16,7 +16,7 @@ import pytorch_lightning as pl
 from models.EfficientNetv2.VarEncoder import EfficientnetV2VarEncoder
 from models.EfficientNetv2.Decoder import EfficientNetv2Decoder
 import ray_lightning as rl
-from models.EfficientNetv2.AutoEncoderAnomalyDataset import AnomalyDataModule as AutoEncoderDataModule
+from models.EfficientNetv2.AutoEncoderDataset import AutoEncoderDataModule
 from pytorch_lightning import Callback
 import time
 from pytorch_lightning import Trainer
@@ -25,7 +25,7 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 import tensorrt as trt
 
-pl.seed_everything(34)
+pl.seed_everything(42)
     
 class VariationalAutoEncoder(pl.LightningModule):
     def __init__(self, 
@@ -35,6 +35,8 @@ class VariationalAutoEncoder(pl.LightningModule):
         self.save_hyperparameters()
         self.encoder = EfficientnetV2VarEncoder()
         self.decoder = EfficientNetv2Decoder()
+        self.encoder.train()
+        self.decoder.train()
         self.latent_dim = 1280
         self.beta = 0
         
@@ -45,7 +47,7 @@ class VariationalAutoEncoder(pl.LightningModule):
             x = self.decoder(z)
         except Exception as e:
             print(e, "Error!")
-            x = torch.rand(32, 3, 256, 256)
+            x = torch.rand(4, 3, 256, 256)
             mu, var = self.encoder(x)
             z = self.encoder.reparameterize(mu, var)
             x = self.decoder(z)
@@ -133,7 +135,7 @@ class VariationalAutoEncoder(pl.LightningModule):
                 print(name, param.data.shape)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
         return [optimizer], [scheduler]
         
@@ -160,9 +162,9 @@ class VariationalAutoEncoder(pl.LightningModule):
 
         # Log input, output, and target images
         self.logger.experiment.log({
-                'input_images': [wandb.Image(x[0])],
-                'output_images': [wandb.Image(x_hat[0])],
-                'target_images': [wandb.Image(y[0])],
+                'input_images': [wandb.Image(x)],
+                'output_images': [wandb.Image(x_hat)],
+                'target_images': [wandb.Image(y)],
         })
 
 
@@ -204,7 +206,7 @@ def train():
 
 
     annotation = utils.dataset_image_autoencoder(
-                            dataset_params['data_path'], "anomaly_test.txt")
+                            dataset_params['data_path'], "anomaly_train.txt")
     dataset = AutoEncoderDataModule(**dataset_params, 
                     annotation=annotation)
 

@@ -97,8 +97,8 @@ class AutoEncoderDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         full_dataset = AutoEncoderDataset(self.batch_size,
                                            self.data_path, self.annotation)
-        train_size = int(0.8 * len(full_dataset))
-        val_size = int(0.1 * len(full_dataset))
+        train_size = int(0.9 * len(full_dataset))
+        val_size = int(0.025 * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(
             full_dataset, [train_size, val_size, test_size])

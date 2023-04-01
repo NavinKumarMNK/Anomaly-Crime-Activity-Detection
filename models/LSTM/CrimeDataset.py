@@ -37,8 +37,6 @@ class CrimeDataset(Dataset):
                 annotation = self.annotation[idx]
                 lst = annotation.split('  ')
                 video_path = self.data_path + lst[1]  + '/' + lst[0]
-                
-                print(annotation)
 
                 label = utils.label_parser(lst[1])
                 video = cv2.VideoCapture(video_path)
@@ -48,7 +46,7 @@ class CrimeDataset(Dataset):
 
                 #sampling the frames
                 frames = []
-
+                y = int(label)
                 if (int(lst[2]) != -1):
                     if (int(lst[3]) - int(lst[2]) < self.batch_size and int(lst[2]) != -1):
                         raise VideoTooShort("Video is too short")
@@ -80,13 +78,8 @@ class CrimeDataset(Dataset):
                         frame = self.preprocessing.preprocess(frame)
                         frames.append(frame)
                         count += 1
-                    if count > 127:
+                    if count > self.batch_size:
                         break
-
-                video.release()
-                X = torch.stack(frames)
-                print(X.shape)
-                print(y)
                 break
 
             except Exception as e:
@@ -95,9 +88,10 @@ class CrimeDataset(Dataset):
                 print(e)
                 idx += 1
                 continue
-
-        print(X.shape, y)
-        return X, y         
+        video.release()
+        X = torch.stack(frames)
+        y = torch.tensor(y)
+        return X, y
         
 class CrimeDataModule(pl.LightningDataModule):
     def __init__(self, batch_size:int, num_workers:int,
@@ -157,3 +151,7 @@ if __name__ == '__main__':
     dataset = CrimeDataModule(**dataset_params)
     dataset.setup()
     print(len(dataset.full_dataset))
+    for x, y in iter(dataset.train_dataloader()):
+        print(x.shape, "\n", y)
+        break
+

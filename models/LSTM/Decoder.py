@@ -7,6 +7,7 @@ import utils.utils as utils
 
 # Import the required modules
 import torch
+from typing import *
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
@@ -32,35 +33,36 @@ class LSTMDecoder(pl.LightningModule):
         self.fc1 = nn.Linear(hidden_size, 256)
         self.fc2 = nn.Linear(256, 64) 
         self.fc3 = nn.Linear(64, num_classes)
-        
         self.save_hyperparameters()
-        self.reset_hidden()
+        self.hidden = None
         try:
             self.lstm = torch.load(utils.ROOT_PATH + '/weights/LSTMDecoder.pt')
         except FileNotFoundError:
             torch.save(self.lstm, utils.ROOT_PATH + '/weights/LSTMDecoder.pt')
 
     def init_hidden(self, batch_size):
-        h = torch.rand(self.num_layers, int(batch_size), self.hidden_size, device="cuda")
-        c = torch.rand(self.num_layers, int(batch_size), self.hidden_size, device="cuda")
+        h = torch.rand(self.num_layers, int(batch_size), self.hidden_size).cuda()
+        c = torch.rand(self.num_layers, int(batch_size), self.hidden_size).cuda()
         return h, c
 
     def reset_hidden(self, batch_size=1):
         self.hidden = self.init_hidden(batch_size)
 
-    def forward(self, x:torch.Tensor, hidden=None):
+    def get_hidden(self):
+        return self.hidden
+
+    def set_hidden(self, hidden:Tuple[torch.Tensor, torch.Tensor]):
+        self.hidden = hidden
+
+    def forward(self, x:torch.Tensor):
         # x.shape: (batch_size, seq_size=1, input_size) -> predict
         # x.shape: (batch_size, seq_size=n, input_size) -> train
 
         if self.hidden is None:
             self.reset_hidden(batch_size=x.shape[0])
-        
-        if hidden != None:
-            self.hidden = hidden
 
         self.h, self.c = self.hidden 
         out, (self.h, self.c) = self.lstm(x, (self.h, self.c))
-        print(out.shape, self.h.shape, self.c.shape)
         out = self.fc3(
             self.relu(
             self.fc2(
@@ -69,17 +71,16 @@ class LSTMDecoder(pl.LightningModule):
             self.relu(
             self.fc(out[:, -1, :]
             ))))))) # only use the last timestep
-        print(out.shape, self.h.shape, self.c.shape, x.shape)
         return out
         
         
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         return optimizer
     
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, _= self(x)
+        y_hat = self(x)
         self.reset_hidden()
         loss = F.cross_entropy(y_hat, y)
         self.log('train/loss', loss)
@@ -88,7 +89,7 @@ class LSTMDecoder(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, _ = self(x)
+        y_hat = self(x)
         loss = F.cross_entropy(y_hat, y)
         self.log('val/loss', loss)
         return loss
@@ -117,8 +118,7 @@ class LSTMDecoder(pl.LightningModule):
 
     def finalize(self):
         self.save_model()
-        self.is_train = False
-        self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
+        self.to_onnx(self.file_path+'.onnx', self.example_input_array.cuda(), export_params=True)
         self.to_torchscript(self.file_path+'_script.pt', method='script')
         self.to_tensorrt()
 
