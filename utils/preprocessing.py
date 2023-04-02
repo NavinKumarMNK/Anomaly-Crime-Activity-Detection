@@ -10,7 +10,7 @@ class ImagePreProcessing:
         super(ImagePreProcessing, self).__init__()
         self.transforms = T.Compose([
             T.ToPILImage(),
-            T.Resize((256, 256)),
+            T.Resize((224, 224)),
             T.ToTensor()
         ])
         self.preprocess = T.Compose([

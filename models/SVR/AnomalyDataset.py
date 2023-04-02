@@ -89,7 +89,7 @@ class AnomalyDataset(Dataset):
                         frames.append(frame)
 
                 labels = np.array(labels, dtype=np.float32)
-                # convert 5d [1, 4, 3, 256 ,256] to [4, 3, 256, 256] in torch
+                # convert 5d [1, 4, 3, 256 ,256] to [4, 3, 224, 224] in torch
                 X = torch.stack(frames, dim=0)
                 print(X.shape)
                 break

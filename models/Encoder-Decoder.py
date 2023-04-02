@@ -25,7 +25,7 @@ class EncoderDecoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(EncoderDecoder, self).__init__()
-        self.example_input_array = torch.rand(1, 3, 256, 256)
+        self.example_input_array = torch.rand(1, 3, 224, 224)
         self.save_hyperparameters()
         self.encoder = EfficientNetv2Encoder()
         # encoder is freeze no change in weights

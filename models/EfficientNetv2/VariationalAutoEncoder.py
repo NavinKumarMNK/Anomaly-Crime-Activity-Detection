@@ -31,7 +31,7 @@ class VariationalAutoEncoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(VariationalAutoEncoder, self).__init__()
-        self.example_input_array = torch.zeros(1, 3, 256, 256)
+        self.example_input_array = torch.zeros(1, 3, 224, 224)
         self.save_hyperparameters()
         self.encoder = EfficientnetV2VarEncoder()
         self.decoder = EfficientNetv2Decoder()
@@ -47,7 +47,7 @@ class VariationalAutoEncoder(pl.LightningModule):
             x = self.decoder(z)
         except Exception as e:
             print(e, "Error!")
-            x = torch.rand(4, 3, 256, 256)
+            x = torch.rand(4, 3, 224, 224)
             mu, var = self.encoder(x)
             z = self.encoder.reparameterize(mu, var)
             x = self.decoder(z)
@@ -55,23 +55,26 @@ class VariationalAutoEncoder(pl.LightningModule):
         return x, mu, var
 
     def loss_function(self, recon_x, x, mu, logvar):
-        MSE = F.mse_loss(recon_x, x)
-        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        MAE = nn.functional.l1_loss(recon_x, x, reduction='none')
+        MAE = MAE.view(MAE.size(0), -1).mean(dim=1)
+        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+        
         if self.beta > 1:
             self.beta = 1
-        self.log("loss/mse_loss", MSE)
-        self.log("loss/kld_loss", KLD)
-        self.log("losss/beta", self.beta)
-        self.log("Total", self.beta*KLD + MSE)
-        return self.beta*KLD + MSE
+        self.log("loss/MAE_loss", MAE.mean())
+        self.log("loss/kld_loss", KLD.mean())
+        loss = MAE + self.beta*KLD
+        loss = loss.mean()
+        self.log("loss/beta", self.beta)
+        self.log("Total loss", loss)
+        return loss
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        self.beta += 0.00001
+        self.beta += 0.0001
         x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
         y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
-        print(x_hat.shape)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('train_loss', loss)
         if batch_idx % 1000 == 0:
@@ -254,7 +257,7 @@ def train():
                 accelerator='gpu',
                 logger=logger,
                 num_sanity_val_steps=0,
-                #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/last.ckpt',
+                #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/vae/last.ckpt',
                 log_every_n_steps=5
                 )
     
