@@ -17,7 +17,7 @@ from models.EfficientNetv2.Encoder import EfficientNetv2Encoder as Encoder
 
 # Decoder model
 class LSTMDecoder(pl.LightningModule):
-    def __init__(self, encoder_output_size:int=1280, hidden_size:int=768, 
+    def __init__(self, encoder_output_size:int=1024, hidden_size:int=768, 
                     num_layers:int=3, num_classes:int=14, is_train:bool=True) -> None:
         super().__init__()
         self.file_path = utils.ROOT_PATH + '/weights/LSTMDecoder'
@@ -133,7 +133,7 @@ class LSTMDecoder(pl.LightningModule):
             config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1024*1024*1024)
             config.set_flag(trt.BuilderFlag.FP16)
 
-            network.get_input(0).shape = [1, 1280]
+            network.get_input(0).shape = [1, 1024]
             engine = builder.build_serialized_network(network, config)
             engine = builder.build_engine(network, config)
             with open(self.file_path+'.trt', 'wb') as f:
@@ -146,7 +146,7 @@ if __name__ == '__main__':
     print(total_params)
 
     #training test
-    values = torch.randn(1, 128, 1280)
+    values = torch.randn(1, 128, 1024)
     hello = model(values)
     print(hello[0].shape)
 
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     model.is_train = False
     i = 0
     while i < 128:
-        values = torch.randn(1, 1, 1280)
+        values = torch.randn(1, 1, 1024)
         hello = model(values)
         i+=1
         if(i==32):
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     model.is_train = False
     i = 0
     while i < 128:
-        values = torch.randn(1, 1, 1280)
+        values = torch.randn(1, 1, 1024)
         hello = model.predict(values)
         i+=1
         if(i==32):

@@ -37,7 +37,7 @@ class VariationalAutoEncoder(pl.LightningModule):
         self.decoder = EfficientNetv2Decoder()
         self.encoder.train()
         self.decoder.train()
-        self.latent_dim = 1280
+        self.latent_dim = 1024
         self.beta = 0
         
     def forward(self, x):

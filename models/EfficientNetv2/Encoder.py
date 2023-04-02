@@ -16,16 +16,6 @@ import torch.nn as nn
 import tensorrt as trt
 import onnx
 from torchvision import models
-        
-
-class Encoder(pl.LightningModule):
-    def __init__(self):
-        super().__init__()
-        self.model = models.efficientnet_v2_m(include_top=False, weights=None)
-        self.model.classifier = nn.Identity()
-       
-    def forward(self, x):
-        return self.model(x)
 
 # Encoder
 class EfficientNetv2Encoder(pl.LightningModule):
@@ -33,7 +23,7 @@ class EfficientNetv2Encoder(pl.LightningModule):
         super(EfficientNetv2Encoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2Encoder'
         self.example_input_array = torch.rand(1, 3, 256, 256)
-        self.example_output_array = torch.rand(1, 1280)
+        self.example_output_array = torch.rand(1, 1024)
         self.save_hyperparameters()
         try:
             self.model = torch.load(utils.ROOT_PATH + '/weights/EfficientNetv2Encoder.pt')

@@ -17,18 +17,19 @@ import torch.nn as nn
 import tensorrt as trt
 import onnx
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
+from models.EfficientNetv2.EncoderCoAtNet import EncoderCoAtNet
 
 class EfficientnetV2VarEncoder(pl.LightningModule):
     def __init__(self):
         super(EfficientnetV2VarEncoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2VE'
-        self.encoder = EfficientNetv2Encoder()
-        self.latent_dim = 1280
+        self.encoder = EncoderCoAtNet()
+        self.latent_dim = 1024
         self.example_input_array = torch.rand(1, 3, 256, 256)
-        self.example_output_array = torch.rand(1, 1280)
+        self.example_output_array = torch.rand(1, 1024)
         self.save_hyperparameters()
-        self.fc_mu = nn.Linear(1280, self.latent_dim)
-        self.fc_var = nn.Linear(1280, self.latent_dim)
+        self.fc_mu = nn.Linear(1024, self.latent_dim)
+        self.fc_var = nn.Linear(1024, self.latent_dim)
 
         try:
             torch.save(self, utils.ROOT_PATH + '/weights/' + 'VE.pt')

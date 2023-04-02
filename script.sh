@@ -10,7 +10,7 @@ else
     bash ~/miniconda.sh -b -p $HOME/miniconda
 
     # Add Miniconda to PATH
-    conda_dir="/home/windows/miniconda"
+    conda_dir="/mnt/nfs_share/nfs_share/miniconda"
 
     # Create a backup of the existing bashrc file
     cp ~/.bashrc ~/.bashrc.backup

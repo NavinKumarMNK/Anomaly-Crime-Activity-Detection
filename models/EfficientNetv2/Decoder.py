@@ -17,6 +17,8 @@ import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
 
+import torch.nn as nn
+
 class SEAttention(nn.Module):
     def __init__(self, in_channels, reduction=16):
         super(SEAttention, self).__init__()
@@ -34,13 +36,12 @@ class SEAttention(nn.Module):
         y = self.fc(y).view(b, c, 1, 1)
         return x * y
     
-    
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
 
         # Initial representation
-        self.fc = nn.Linear(1280, 4*4*1024)
+        self.fc = nn.Linear(1024, 4*4*1024)
         self.bn1d = nn.BatchNorm1d(4*4*1024)
         self.gelu = nn.GELU()
 
@@ -65,8 +66,8 @@ class Decoder(nn.Module):
         self.bn5 = nn.BatchNorm2d(32)
         self.relu5 = nn.ReLU()
 
-        self.conv6 = nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn6 = nn.BatchNorm2d(32)
+        self.conv6 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn6 = nn.BatchNorm2d(16)
         self.relu6 = nn.ReLU()
 
         # Residual blocks with SE attention
@@ -91,13 +92,16 @@ class Decoder(nn.Module):
             SEAttention(256),
             nn.ReLU()
         )
+
+        self.dropout = nn.Dropout(0.25)
         
-        self.conv7 = nn.Conv2d(32, 3, kernel_size=1, stride=1, padding=0)
+        self.conv7 = nn.Conv2d(16, 3, kernel_size=3, stride=1, padding=1)
         self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = self.fc(x)
         x = self.bn1d(x)
+        x = self.dropout(x)
         x = self.gelu(x)
         x = x.view(-1, 1024, 4, 4)
 
@@ -107,6 +111,7 @@ class Decoder(nn.Module):
 
         x = self.conv2(x)
         x = self.bn2(x)
+        x = self.dropout(x)
         x = self.relu2(x)
 
         x = self.res1(x) + x
@@ -118,6 +123,7 @@ class Decoder(nn.Module):
 
         x = self.conv4(x)
         x = self.bn4(x)
+        x = self.dropout(x)
         x = self.relu4(x)
 
         x = self.res2(x) + x
@@ -134,7 +140,7 @@ class Decoder(nn.Module):
         x = self.tanh(x)
 
         return x
-    
+
 
 class EfficientNetv2Decoder(pl.LightningModule):
     def __init__(self):
@@ -186,3 +192,6 @@ if __name__ == '__main__':
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)
     
+    inp = torch.randn(2, 1024)
+    out = model(inp)
+    print(out.shape)
