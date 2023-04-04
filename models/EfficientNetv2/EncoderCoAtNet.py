@@ -13,7 +13,7 @@ import tensorrt as trt
 
 class EncoderCoAtNet(pl.LightningModule):
     def __init__(self, weights_path="/weights/EncoderCoAtNet", 
-                 num_blocks=[2, 2, 6, 14, 2], channels=[128, 128, 256, 512, 1024]):
+                 num_blocks=[2, 2, 6, 14, 2], channels=[64, 128, 256, 512, 1024]):
         super(EncoderCoAtNet, self).__init__()
         self.model = CoAtNet(num_blocks=num_blocks, channels=channels)
         self.weights_path = weights_path

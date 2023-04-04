@@ -258,11 +258,17 @@ class CoAtNet(pl.LightningModule):
         return nn.Sequential(*layers)
 
 if __name__ == "__main__":
-    model = CoAtNet().to('cuda')
+    model = CoAtNet(num_blocks=[2, 2, 6, 14, 2], channels=[64, 128, 256, 512, 1024]).to('cuda')
     print(model)
 
     x = torch.randn(1, 3, 256, 256).to('cuda')
     y = model(x)
+
+    model.train()
+    print(x.shape)
+    y = model(x)
+
+
     print(y.shape)
     # calculate total parameters
     total_params = sum(p.numel() for p in model.parameters())

@@ -66,8 +66,8 @@ class EfficientnetV2VarEncoder(pl.LightningModule):
     
     def finalize(self):
         self.save_model()
-        self.to_torchscript(self.file_path+'_script.pt', method='script', example_inputs=self.example_input_array)
         self.to_onnx(self.file_path+'.onnx', self.example_input_array, export_params=True)
+        #self.to_torchscript(self.file_path+'_script.pt', method='script', example_inputs=self.example_input_array)
         self.to_tensorrt()
     
     def to_tensorrt(self):

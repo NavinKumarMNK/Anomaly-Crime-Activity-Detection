@@ -31,7 +31,7 @@ class VariationalAutoEncoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(VariationalAutoEncoder, self).__init__()
-        self.example_input_array = torch.zeros(1, 3, 256, 256)
+        self.example_input_array = torch.zeros(1, 3, 256, 256).half()
         self.save_hyperparameters()
         self.encoder = EfficientnetV2VarEncoder()
         self.decoder = EfficientNetv2Decoder()
@@ -39,6 +39,19 @@ class VariationalAutoEncoder(pl.LightningModule):
         self.decoder.train()
         self.latent_dim = 1024
         self.beta = 0
+        self.lr = 1e-4
+        # xaiver initialization
+        for param in self.encoder.parameters():
+            if len(param.shape) > 1:
+                nn.init.xavier_uniform_(param)
+        for param in self.decoder.parameters():
+            if len(param.shape) > 1:
+                nn.init.xavier_uniform_(param)
+
+        for param in self.encoder.parameters():
+            param.requires_grad = True
+        for param in self.decoder.parameters():
+            param.requires_grad = True
         
     def forward(self, x):
         try:
@@ -55,21 +68,25 @@ class VariationalAutoEncoder(pl.LightningModule):
         return x, mu, var
 
     def loss_function(self, recon_x, x, mu, logvar):
-        MSE = F.mse_loss(recon_x, x)
-        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        MAE = nn.functional.l1_loss(recon_x, x, reduction='none')
+        MAE = MAE.view(MAE.size(0), -1).mean(dim=1)
+        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+        
         if self.beta > 1:
             self.beta = 1
-        self.log("loss/mse_loss", MSE)
-        self.log("loss/kld_loss", KLD)
-        self.log("losss/beta", self.beta)
-        self.log("Total", self.beta*KLD + MSE)
-        return self.beta*KLD + MSE
+        self.log("loss/MAE_loss", MAE.mean())
+        self.log("loss/kld_loss", KLD.mean())
+        loss = MAE + self.beta*KLD
+        loss = loss.mean()
+        self.log("loss/beta", self.beta)
+        self.log("Total loss", loss)
+        return loss
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        self.beta += 0.00001
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        self.beta += 0.0001
+        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         print(x_hat.shape)
         loss = self.loss_function(x_hat, y, mu, log_var)
@@ -88,8 +105,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('val_loss', loss)
@@ -115,8 +132,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('test_loss', loss)
@@ -136,8 +153,7 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-        return [optimizer], [scheduler]
+        return [optimizer]
         
     def prediction_step(self, batch, batch_idx, dataloader_idx=None):
         x, y = batch
@@ -250,14 +266,13 @@ def train():
     
     trainer = Trainer(**autoencoder_params, 
                 callbacks=callbacks, 
-                #strategy='deepspeed_stage_1',
+                strategy='deepspeed_stage_1',
                 accelerator='gpu',
                 logger=logger,
                 num_sanity_val_steps=0,
                 #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/last.ckpt',
                 log_every_n_steps=5
                 )
-    
     
     trainer.fit(model, dataset)
     model.save_model()

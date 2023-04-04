@@ -26,7 +26,7 @@ class SEAttention(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(in_channels, in_channels // reduction, bias=False),
             nn.ReLU(inplace=True),
-            nn.Linear(in_channels // reduction, in_channels, bias=False),
+            nn.Linear(in_channels // reduction, in_channels, bias=True),
             nn.Sigmoid()
         )
 
@@ -41,47 +41,58 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         # Initial representation
-        self.fc = nn.Linear(1024, 4*4*1024)
-        self.bn1d = nn.BatchNorm1d(4*4*1024)
+        self.fc = nn.Linear(1024, 2*2*1024)
+        self.bn1d = nn.BatchNorm1d(2*2*1024)
         self.gelu = nn.GELU()
 
         # Decoder layers
-        self.conv1 = nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn1 = nn.BatchNorm2d(512)
-        self.relu1 = nn.ReLU()
+            
+        self.conv1 = nn.ConvTranspose2d(1024, 768, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn1 = nn.BatchNorm2d(768)
+        self.relu1 = nn.GELU()
 
-        self.conv2 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.conv9 = nn.ConvTranspose2d(768, 512, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn9 = nn.BatchNorm2d(512)
+        self.relu9 = nn.GELU()
+
+        self.conv12 = nn.ConvTranspose2d(512, 512, kernel_size=5, stride=1, padding=2, output_padding=0)
+        self.bn12 = nn.BatchNorm2d(512)
+        self.relu12 = nn.GELU()
+
+
+        self.conv11 = nn.ConvTranspose2d(512, 384, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn11 = nn.BatchNorm2d(384)
+        self.relu11 = nn.GELU()
+
+        self.conv2 = nn.ConvTranspose2d(384, 256, kernel_size=4, stride=2, padding=1, output_padding=0)
         self.bn2 = nn.BatchNorm2d(256)
-        self.relu2 = nn.ReLU()
+        self.relu2 = nn.GELU()
 
-        self.conv3 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.relu3 = nn.ReLU()
+        self.conv10 = nn.ConvTranspose2d(256, 256, kernel_size=5, stride=1, padding=2, output_padding=0)
+        self.bn10 = nn.BatchNorm2d(256)
+        self.relu10 = nn.GELU()
 
-        self.conv4 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn4 = nn.BatchNorm2d(64)
-        self.relu4 = nn.ReLU()
+        self.conv3 = nn.ConvTranspose2d(256, 192, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn3 = nn.BatchNorm2d(192)
+        self.relu3 = nn.GELU()
+        
+        self.conv4 = nn.ConvTranspose2d(192, 128, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn4 = nn.BatchNorm2d(128)
+        self.relu4 = nn.GELU()
 
-        self.conv5 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn5 = nn.BatchNorm2d(32)
-        self.relu5 = nn.ReLU()
+        self.conv5 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, output_padding=0)
+        self.bn5 = nn.BatchNorm2d(64)
+        self.relu5 = nn.GELU()
 
-        self.conv6 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1, output_padding=0)
-        self.bn6 = nn.BatchNorm2d(16)
-        self.relu6 = nn.ReLU()
+        self.conv6 = nn.ConvTranspose2d(64, 64, kernel_size=5, stride=1, padding=2, output_padding=0)
+        self.bn6 = nn.BatchNorm2d(64)
+        self.relu6 = nn.GELU()
+
+        self.conv7 = nn.ConvTranspose2d(64, 32, kernel_size=5, stride=1, padding=2, output_padding=0)
+        self.bn7 = nn.BatchNorm2d(32)
+        self.relu7 = nn.GELU()
 
         # Residual blocks with SE attention
-        self.res2 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.Sigmoid(),
-            SEAttention(64),
-            nn.ReLU()
-        )
-
         self.res1 = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
@@ -93,29 +104,57 @@ class Decoder(nn.Module):
             nn.ReLU()
         )
 
+        self.res2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.Sigmoid(),
+            SEAttention(64),
+            nn.ReLU()
+        )
+
         self.dropout = nn.Dropout(0.25)
         
-        self.conv7 = nn.Conv2d(16, 3, kernel_size=3, stride=1, padding=1)
+        self.conv8 = nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1)
         self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = self.fc(x)
         x = self.bn1d(x)
-        x = self.dropout(x)
         x = self.gelu(x)
-        x = x.view(-1, 1024, 4, 4)
+
+        x = x.view(x.size(0), 1024, 2, 2)
 
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu1(x)
 
+        x = self.conv9(x)
+        x = self.bn9(x)
+        x = self.relu9(x)
+
+        x = self.conv12(x)
+        x = self.bn12(x)
+        x = self.relu12(x)
+        x = self.dropout(x)
+
+        x = self.conv11(x)
+        x = self.bn11(x)
+        x = self.relu11(x)
+
         x = self.conv2(x)
         x = self.bn2(x)
-        x = self.dropout(x)
         x = self.relu2(x)
+        x = self.dropout(x)
+
+        x = self.conv10(x)
+        x = self.bn10(x)
+        x = self.relu10(x)
 
         x = self.res1(x) + x
-
+        x = self.dropout(x)
 
         x = self.conv3(x)
         x = self.bn3(x)
@@ -123,24 +162,29 @@ class Decoder(nn.Module):
 
         x = self.conv4(x)
         x = self.bn4(x)
-        x = self.dropout(x)
         x = self.relu4(x)
-
-        x = self.res2(x) + x
 
         x = self.conv5(x)
         x = self.bn5(x)
         x = self.relu5(x)
+        x = self.dropout(x)
 
         x = self.conv6(x)
         x = self.bn6(x)
         x = self.relu6(x)
 
+        x = self.res2(x) + x
+        x = self.dropout(x)
+
         x = self.conv7(x)
+        x = self.bn7(x)
+        x = self.relu7(x)
+
+        x = self.conv8(x)
+
         x = self.tanh(x)
 
         return x
-
 
 class EfficientNetv2Decoder(pl.LightningModule):
     def __init__(self):
