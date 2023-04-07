@@ -60,7 +60,7 @@ class VariationalAutoEncoder(pl.LightningModule):
             x = self.decoder(z)
         except Exception as e:
             print(e, "Error!")
-            x = torch.rand(4, 3, 256, 256)
+            x = torch.rand(4, 3, 224, 224)
             mu, var = self.encoder(x)
             z = self.encoder.reparameterize(mu, var)
             x = self.decoder(z)
@@ -88,7 +88,6 @@ class VariationalAutoEncoder(pl.LightningModule):
         #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
         #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
-        print(x_hat.shape)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('train_loss', loss)
         if batch_idx % 1000 == 0:
@@ -270,7 +269,7 @@ def train():
                 accelerator='gpu',
                 logger=logger,
                 num_sanity_val_steps=0,
-                #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/autoencoder/last.ckpt',
+                #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/vae/last.ckpt',
                 log_every_n_steps=5
                 )
     
