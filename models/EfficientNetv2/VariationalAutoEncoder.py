@@ -31,7 +31,7 @@ class VariationalAutoEncoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(VariationalAutoEncoder, self).__init__()
-        self.example_input_array = torch.zeros(1, 3, 224, 224)
+        self.example_input_array = torch.zeros(1, 3, 256, 256).half()
         self.save_hyperparameters()
         self.encoder = EfficientnetV2VarEncoder()
         self.decoder = EfficientNetv2Decoder()
@@ -39,6 +39,19 @@ class VariationalAutoEncoder(pl.LightningModule):
         self.decoder.train()
         self.latent_dim = 1024
         self.beta = 0
+        self.lr = 1e-4
+        # xaiver initialization
+        for param in self.encoder.parameters():
+            if len(param.shape) > 1:
+                nn.init.xavier_uniform_(param)
+        for param in self.decoder.parameters():
+            if len(param.shape) > 1:
+                nn.init.xavier_uniform_(param)
+
+        for param in self.encoder.parameters():
+            param.requires_grad = True
+        for param in self.decoder.parameters():
+            param.requires_grad = True
         
     def forward(self, x):
         try:
@@ -72,8 +85,8 @@ class VariationalAutoEncoder(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         self.beta += 0.0001
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('train_loss', loss)
@@ -91,8 +104,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('val_loss', loss)
@@ -118,8 +131,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('test_loss', loss)
@@ -139,8 +152,7 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-        return [optimizer], [scheduler]
+        return [optimizer]
         
     def prediction_step(self, batch, batch_idx, dataloader_idx=None):
         x, y = batch
@@ -253,14 +265,13 @@ def train():
     
     trainer = Trainer(**autoencoder_params, 
                 callbacks=callbacks, 
-                #strategy='deepspeed_stage_1',
+                strategy='deepspeed_stage_1',
                 accelerator='gpu',
                 logger=logger,
                 num_sanity_val_steps=0,
                 #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/vae/last.ckpt',
                 log_every_n_steps=5
                 )
-    
     
     trainer.fit(model, dataset)
     model.save_model()

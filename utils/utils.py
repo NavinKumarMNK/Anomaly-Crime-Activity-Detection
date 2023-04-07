@@ -3,8 +3,8 @@ import torch
 import configparser
 import os
 
-ROOT_PATH = '/mnt/nfs_share/nfs_share/Video-Detection'
-DATA_PATH = '/mnt/nfs_share/nfs_share/Data/data'
+ROOT_PATH = '/home/windows/Video-Detection'
+DATA_PATH = '/home/windows/Data/data'
 
 def current_path():
     return os.path.abspath('./')
@@ -63,13 +63,7 @@ def dataset_image_autoencoder(file_path, file_name):
             video_path = lst[1]
             video_path = os.path.join(file_path, lst[0], video_path) 
             print(video_path)
-            video = cv2.VideoCapture(video_path.strip())
-            
-            count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            if count == 0:
-                continue
-            count = int(count / batch_size) + 1
-            
+            count = 16
             i = 0
             while i != count:
                 i+=1

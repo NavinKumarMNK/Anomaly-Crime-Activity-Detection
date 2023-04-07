@@ -50,33 +50,19 @@ class AutoEncoderDataset(Dataset):
             if not (cap.isOpened() and cap.get(cv2.CAP_PROP_FRAME_COUNT) > 0):
                 continue
             
-            if count < self.batch_size:
-                ret_frames = np.random.randint(0, count, count)
-            else:
-                ret_frames= np.random.randint(0, count, self.batch_size)
-            
+            frame = np.random.randint(0, count)
                 
-            frames = []
-            original = []
             # Get random frame indexes for batch size
-            for frame in ret_frames:
-                cap.set(1, frame)
-                ret, frame = cap.read()
-                if ret:
-                    frame = np.transpose(frame, (2, 0, 1))
-                    frame = self.preprocessing.transforms(torch.from_numpy(frame))
-                    frame = self.preprocessing.preprocess(frame)
-                    framex = self.preprocessing.augumentation(frame)
-                    frames.append(framex)
-                    framey = self.preprocessing.improve(frame)
-                    original.append(framey)
+            cap.set(1, frame)
+            ret, frame = cap.read()
+            if ret:
+                frame = np.transpose(frame, (2, 0, 1))
+                frame = self.preprocessing.transforms(torch.from_numpy(frame))
+                frame = self.preprocessing.preprocess(frame)
+                
+            X = frame
+            y = X.clone()
 
-
-            X = torch.stack(frames, dim=0)
-            y = torch.stack(frames, dim=0)
-            X = X
-            y = X
-            
             if(torch.isnan(X).any() or torch.isnan(y).any()):
                 print("reported")
                 continue
@@ -97,49 +83,33 @@ class AutoEncoderDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         full_dataset = AutoEncoderDataset(self.batch_size,
                                            self.data_path, self.annotation)
-        train_size = int(0.9 * len(full_dataset))
-        val_size = int(0.025 * len(full_dataset))
+        train_size = int(0.8 * len(full_dataset))
+        val_size = int(0.1 * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(
             full_dataset, [train_size, val_size, test_size])
         
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers,
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
                            shuffle=True, drop_last=True, pin_memory=True) 
 
     def val_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers,
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
                            shuffle=False, drop_last=True, pin_memory=True)
 
     def test_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers,
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
                            shuffle=False, drop_last=True, pin_memory=True)
 
 if __name__ == '__main__':
     dataset_params = utils.config_parse('AUTOENCODER_DATASET')
     annotation = utils.dataset_image_autoencoder(
-                            dataset_params['data_path'])
+                            dataset_params['data_path'], "anomaly_train.txt")
     dataset = AutoEncoderDataModule(**dataset_params, 
                     annotation=annotation)
     dataset.setup()
     
     train_loader = dataset.train_dataloader()
-    from models.EfficientNetv2.AutoEncoder import AutoEncoder
-    model = AutoEncoder()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    import time
     for i, (x, y) in enumerate(train_loader):
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4))
-        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4))
-        out = model(x)
-        print(out.shape)
-    
-        time.sleep(10)
-        #train the model
-        loss = F.mse_loss(out.to('cuda:0'), y.to('cuda:0'))
-        loss.backward()
-        
-        #update the model
-        optimizer.step()
-        optimizer.zero_grad()
-
+        print(x.shape, y.shape)
+        break
