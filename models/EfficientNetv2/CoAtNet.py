@@ -220,7 +220,7 @@ class Transformer(pl.LightningModule):
 
 
 class CoAtNet(pl.LightningModule):
-    def __init__(self, image_size=(64, 64), in_channels=3, num_blocks= [2, 2, 6, 14, 2]  , channels=channels_large , num_classes=649, block_types=['C', 'C', 'T', 'T']):
+    def __init__(self, image_size=(256, 256), in_channels=3, num_blocks= [2, 2, 6, 14, 2]  , channels=channels_large , num_classes=649, block_types=['C', 'C', 'T', 'T']):
         super().__init__()
         ih, iw = image_size
         block = {'C': MBConv, 'T': Transformer}
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     print(model)
 
     model.eval()
-    x = torch.randn(1, 3, 64, 64).to('cuda')
+    x = torch.randn(1, 3, 256, 256).to('cuda')
     y = model(x)
 
     model.train()

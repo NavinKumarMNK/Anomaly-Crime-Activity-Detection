@@ -15,11 +15,11 @@ import wandb
 import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
-from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
+from models.EfficientNetv2.VarEncoder import Efficientnetv2VarEncoder
 from models.LSTM.Decoder import LSTMDecoder
 import ray_lightning as rl
 from models.LSTM.LSTMDataset import LSTMDatasetModule
-from models.LSTM.CrimeDataset import CrimeDataModule
+from models.LSTM.AnomalyCrimeDataset import CrimeDataModule
 
 class EncoderDecoder(pl.LightningModule):
     def __init__(self, 
@@ -27,7 +27,7 @@ class EncoderDecoder(pl.LightningModule):
         super(EncoderDecoder, self).__init__()
         self.example_input_array = torch.rand(1, 3, 256, 256)
         self.save_hyperparameters()
-        self.encoder = EfficientNetv2Encoder()
+        self.encoder = Efficientnetv2VarEncoder()
         # encoder is freeze no change in weights
         #for param in self.encoder.parameters():
         #    param.requires_grad = False
@@ -35,8 +35,10 @@ class EncoderDecoder(pl.LightningModule):
   
     def forward(self, x):
         #with torch.no_grad():
-        x = self.encoder(x)
+        mu, var = self.encoder(x)
+        x = self.encoder.reparameterize(mu, var)
         x = self.decoder(x.unsqueeze(0))
+        
         return x
 
     def training_step(self, batch, batch_idx):

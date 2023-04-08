@@ -18,16 +18,16 @@ import tensorrt as trt
 import onnx
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.EfficientNetv2.EncoderCoAtNet import EncoderCoAtNet
-from models.EfficientNetv2.SwimTransformer import EncoderSwimTransformer
+#from models.EfficientNetv2.SwimTransformer import EncoderSwimTransformer
 from models.EfficientNetv2.EncoderCoAtNetx64 import EncoderCoAtNetx64
 
-class EfficientnetV2VarEncoder(pl.LightningModule):
+class Efficientnetv2VarEncoder(pl.LightningModule):
     def __init__(self):
-        super(EfficientnetV2VarEncoder, self).__init__()
+        super(Efficientnetv2VarEncoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2VE'
         self.encoder = EncoderCoAtNetx64()
         self.latent_dim = 1024
-        self.example_input_array = torch.rand(1, 3, 64, 64)
+        self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1024)
         self.save_hyperparameters()
         self.fc_mu = nn.Linear(1024, self.latent_dim)
@@ -91,7 +91,7 @@ class EfficientnetV2VarEncoder(pl.LightningModule):
                 f.write(engine.serialize())   
 
 if __name__ == '__main__':
-    model = EfficientnetV2VarEncoder()
+    model = Efficientnetv2VarEncoder()
     print(model)
     total_params = sum(p.numel() for p in model.parameters())
     print(total_params)

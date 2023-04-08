@@ -14,16 +14,19 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import cv2
 import numpy as np
 from utils.preprocessing import ImagePreProcessing
-class CrimeDataset(Dataset):
+
+class AnomalyCrimeDataset(Dataset):
     def __init__(self, batch_size:int,
                     data_path, annotation, sample_rate) -> None:
-        super(CrimeDataset, self).__init__()
+        super(AnomalyCrimeDataset, self).__init__()
         self.data_path = data_path
         self.annotation = open(self.data_path + annotation, 
                                         'r').read().splitlines()
         self.batch_size = int(batch_size)
 
         self.preprocessing = ImagePreProcessing()
+        if sample_rate == -1:
+            self.sample_rate = np.random.randint(1, 10)
         self.global_sample_rate = self.sample_rate = sample_rate
         self.index = 0
         
@@ -32,7 +35,7 @@ class CrimeDataset(Dataset):
     
     def __getitem__(self, idx):
         while True:
-            self.sample_rate = self.global_sample_rate
+            self.sample_rate = np.random.randint(1, 10)
             try:
                 annotation = self.annotation[idx]
                 lst = annotation.split('  ')
@@ -51,20 +54,20 @@ class CrimeDataset(Dataset):
                     if (int(lst[3]) - int(lst[2]) < self.batch_size and int(lst[2]) != -1):
                         raise VideoTooShort("Video is too short")
                     
-                    elif (int(lst[3]) - int(lst[2]) / self.sample_rate < self.batch_size):
-                        self.sample_rate = int((int(lst[3]) - int(lst[2])) / self.batch_size)
-                    start = int(lst[2])
-                    end = int(lst[3])
+                    elif (int(lst[3]) - int(lst[2]) // self.sample_rate < self.batch_size):
+                        self.sample_rate = int((int(lst[3]) - int(lst[2])) // self.batch_size)
+                    start = int(lst[2]) + np.random.randint(0, int(lst[3]) - int(lst[2]) - self.batch_size * self.sample_rate)
+                    end = int(lst[3]) 
                 else:
-                    start = 0
+                    start = np.random.randint(0, int(video.get(cv2.CAP_PROP_FRAME_COUNT)) - self.batch_size * self.sample_rate)
                     end = start + self.batch_size * self.sample_rate
                     if (end > int(video.get(cv2.CAP_PROP_FRAME_COUNT))):
                         end = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
                         if(end - start < self.batch_size):
                             raise VideoTooShort("Video is too short")
                             
-                        elif (end - start / self.sample_rate < self.batch_size):
-                            self.sample_rate = int((end - start) / self.batch_size)
+                        elif (end - start // self.sample_rate < self.batch_size):
+                            self.sample_rate = int((end - start) // self.batch_size)
                 
                 end = start + self.batch_size * self.sample_rate
                 count = 0             
@@ -90,18 +93,19 @@ class CrimeDataset(Dataset):
                 continue
         video.release()
         X = torch.stack(frames)
-        y = torch.tensor(y)
+        # add y self.batch_size times
+        y = torch.tensor([y] * self.batch_size)
         return X, y
         
-class CrimeDataModule(pl.LightningDataModule):
+class AnomalyCrimeDataModule(pl.LightningDataModule):
     def __init__(self, batch_size:int, num_workers:int,
                     data_path, annotation, sample_rate):
-        super(CrimeDataModule, self).__init__()
+        super(AnomalyCrimeDataModule, self).__init__()
         self.annotation = annotation
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
         self.data_path = data_path
-        self.full_dataset = CrimeDataset(self.batch_size,
+        self.full_dataset = AnomalyCrimeDataset(self.batch_size,
                                            self.data_path, self.annotation, sample_rate)
     
     def setup(self, stage=None):    
@@ -148,7 +152,7 @@ class CrimeDataModule(pl.LightningDataModule):
 
 if __name__ == '__main__':
     dataset_params = utils.config_parse('CRIME_DATASET')    
-    dataset = CrimeDataModule(**dataset_params)
+    dataset = AnomalyCrimeDataModule(**dataset_params)
     dataset.setup()
     print(len(dataset.full_dataset))
     for x, y in iter(dataset.train_dataloader()):

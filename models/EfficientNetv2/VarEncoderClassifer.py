@@ -14,9 +14,8 @@ import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
 from models.EfficientNetv2.VarEncoder import Efficientnetv2VarEncoder
-from models.EfficientNetv2.Decoder import EfficientNetv2Decoder
 import ray_lightning as rl
-from models.EfficientNetv2.AutoEncoderDataset import AutoEncoderDataModule
+from models.LSTM.AnomalyCrimeDataset import AnomalyCrimeDataModule
 from pytorch_lightning import Callback
 import time
 from pytorch_lightning import Trainer
@@ -34,9 +33,28 @@ class VariationalAutoEncoder(pl.LightningModule):
         self.example_input_array = torch.zeros(1, 3, 256, 256).half()
         self.save_hyperparameters()
         self.encoder = Efficientnetv2VarEncoder()
-        self.decoder = EfficientNetv2Decoder()
+        hidden_rep = 1024
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_rep, hidden_rep),
+            nn.BatchNorm1d(hidden_rep),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(hidden_rep, hidden_rep),
+            nn.BatchNorm1d(hidden_rep),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(hidden_rep, 768),
+            nn.BatchNorm1d(768),
+            nn.ReLU(),
+            nn.Linear(768, 256),
+            nn.ReLU(),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Linear(64, 2)
+        )
+
         self.encoder.train()
-        self.decoder.train()
+        self.classifier.train()
         self.latent_dim = 1024
         self.beta = 0
         self.lr = 1e-4
@@ -44,34 +62,35 @@ class VariationalAutoEncoder(pl.LightningModule):
     def forward(self, x):
         mu, var = self.encoder(x)
         z = self.encoder.reparameterize(mu, var)
-        x = self.decoder(z)
+        x = self.classifier(z)
         return x, mu, var
 
-    def loss_function(self, recon_x, x, mu, logvar):
-        MAE = nn.functional.l1_loss(recon_x, x, reduction='none')
-        MAE = MAE.view(MAE.size(0), -1).mean(dim=1)
+    def loss_function(self, y_pred, y_real, mu, logvar):
+        log_loss = nn.CrossEntropyLoss()(y_pred, y_real)
+
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
         
         if self.beta > 1:
             self.beta = 1
-        self.log("loss/MAE_loss", MAE.mean())
-        self.log("loss/kld_loss", KLD.mean())
-        loss = MAE + self.beta*KLD
-        loss = loss.mean()
-        self.log("loss/beta", self.beta)
-        self.log("Total loss", loss)
-        return loss
+        
+        self.log('beta', self.beta)
+        self.log('log_loss', log_loss)
+        self.log('KLD', KLD.mean())
+        total_loss = log_loss + self.beta * KLD.mean() 
+        self.log('total_loss', total_loss)
+        return total_loss
 
+        
     def training_step(self, batch, batch_idx):
         x, y = batch
         self.beta += 0.0001
-        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
-        x_hat, mu, log_var = self(x)
-        loss = self.loss_function(x_hat, y, mu, log_var)
+        print(x.shape, y.shape)
+        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4))
+        y = y.unsqueeze(1).view(y.size(1)).long()
+        x, mu, log_var = self(x)
+   
+        loss = self.loss_function(x, y, mu, log_var)
         self.log('train_loss', loss)
-        if batch_idx % 1000 == 0:
-            self.log_image(x, x_hat, y)
         return {"loss" : loss}
 
     def training_epoch_end(self, outputs)-> None:
@@ -84,8 +103,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('val_loss', loss)
@@ -111,8 +130,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        #x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
-        #y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
+        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('test_loss', loss)
@@ -120,7 +139,7 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def save_model(self):
         self.encoder.save_model()
-        self.decoder.save_model()
+        self.classifier.save_model()
         artifact = wandb.Artifact('auto_encoder_model.cpkt', type='model')
         wandb.run.log_artifact(artifact)
 
@@ -154,13 +173,6 @@ class VariationalAutoEncoder(pl.LightningModule):
         x = (x * std + mean).clamp(0, 1)
         x_hat = (x_hat * std + mean).clamp(0, 1)
         y = (y * std + mean).clamp(0, 1)
-
-        # Log input, output, and target images
-        self.logger.experiment.log({
-                'input_images': [wandb.Image(x)],
-                'output_images': [wandb.Image(x_hat)],
-                'target_images': [wandb.Image(y)],
-        })
 
 
 class CUDACallback(Callback):
@@ -197,20 +209,16 @@ class CUDACallback(Callback):
 
 def train():
     #ray.init(runtime_env={"working_dir": utils.ROOT_PATH})
-    dataset_params = utils.config_parse('AUTOENCODER_DATASET')
+    dataset_params = utils.config_parse('ANOMALY_DATASET')
 
-
-    annotation = utils.dataset_image_autoencoder(
-                            dataset_params['data_path'], "anomaly_train.txt")
-    dataset = AutoEncoderDataModule(**dataset_params, 
-                    annotation=annotation)
+    dataset = AnomalyCrimeDataModule(**dataset_params)
 
     dataset.setup()
     
-    early_stopping = EarlyStopping(monitor='val_loss', patience=5)
+    early_stopping = EarlyStopping(monitor='val/loss_epoch', patience=5)
     device_monitor = DeviceStatsMonitor()
     checkpoint_callback = ModelCheckpoint(dirpath=utils.ROOT_PATH + '/weights/checkpoints/vae/',
-                                            monitor="val_loss", mode='min', every_n_train_steps=100, save_top_k=1, save_last=True)
+                                            monitor="val/loss_epoch", mode='min', every_n_train_steps=100, save_top_k=1, save_last=True)
     refresh_rate = TQDMProgressBar(refresh_rate=10)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
@@ -224,7 +232,7 @@ def train():
     ]
 
     model = VariationalAutoEncoder()
-    autoencoder_params = utils.config_parse('AUTOENCODER_TRAIN')
+    autoencoder_params = utils.config_parse('VARCLASSIFER_TRAIN')
     dist_env_params = utils.config_parse('DISTRIBUTED_ENV')
     strategy = None
     if int(dist_env_params['horovod']) == 1:
@@ -250,7 +258,7 @@ def train():
                 logger=logger,
                 num_sanity_val_steps=0,
                 #resume_from_checkpoint=utils.ROOT_PATH + '/weights/checkpoints/vae/last.ckpt',
-                log_every_n_steps=5
+                log_every_n_steps=5,
                 )
     
     trainer.fit(model, dataset)
