@@ -31,10 +31,10 @@ class VariationalAutoEncoder(pl.LightningModule):
     def __init__(self, 
                     ) -> None:
         super(VariationalAutoEncoder, self).__init__()
-        self.example_input_array = torch.zeros(1, 3, 256, 256).half()
+        self.example_input_array = torch.zeros(1, 3, 64, 64).half()
         self.save_hyperparameters()
         self.encoder = EfficientnetV2VarEncoder()
-        self.decoder = EfficientNetv2Decoder()
+        self.decoder = EfficientNetv2Decoder(size='x64')
         self.encoder.train()
         self.decoder.train()
         self.latent_dim = 1024
@@ -54,17 +54,9 @@ class VariationalAutoEncoder(pl.LightningModule):
             param.requires_grad = True
         
     def forward(self, x):
-        try:
-            mu, var = self.encoder(x)
-            z = self.encoder.reparameterize(mu, var)
-            x = self.decoder(z)
-        except Exception as e:
-            print(e, "Error!")
-            x = torch.rand(4, 3, 224, 224)
-            mu, var = self.encoder(x)
-            z = self.encoder.reparameterize(mu, var)
-            x = self.decoder(z)
-        
+        mu, var = self.encoder(x)
+        z = self.encoder.reparameterize(mu, var)
+        x = self.decoder(z)
         return x, mu, var
 
     def loss_function(self, recon_x, x, mu, logvar):

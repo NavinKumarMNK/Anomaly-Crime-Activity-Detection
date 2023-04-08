@@ -57,7 +57,7 @@ class TensorRTDeployment:
 serve.run(TensorRTDeployment.bind())
 
 # Query the deployment and print the result
-data = np.random.randn(1, 3, 224, 224).astype(np.float32)
+data = np.random.randn(1, 3, 256, 256).astype(np.float32)
 response = requests.post("http://localhost:8000/predict", json=data.tolist())
 output = np.array(response.json())
 print(output)

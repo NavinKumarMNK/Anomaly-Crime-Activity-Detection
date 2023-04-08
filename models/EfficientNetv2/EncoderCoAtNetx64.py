@@ -11,13 +11,13 @@ from models.EfficientNetv2.CoAtNet import CoAtNet
 import utils.utils as utils
 import tensorrt as trt
 
-class EncoderCoAtNet(pl.LightningModule):
-    def __init__(self, weights_path="/weights/EncoderCoAtNet", 
-                 num_blocks=[2, 2, 6, 14, 2], channels=[64, 128, 256, 512, 1024]):
-        super(EncoderCoAtNet, self).__init__()
+class EncoderCoAtNetx64(pl.LightningModule):
+    def __init__(self, weights_path="/weights/EncoderCoAtNetx64",
+                num_blocks=[2, 2, 6, 14, 2], channels=[64, 128, 256, 512, 1024]):
+        super(EncoderCoAtNetx64, self).__init__()
         self.model = CoAtNet(num_blocks=num_blocks, channels=channels)
         self.weights_path = weights_path
-        self.example_input_array = torch.randn(1, 3, 256, 256)
+        self.example_input_array = torch.randn(1, 3, 64, 64)
         self.example_output_array = torch.randn(1, 1024)
         self.save_hyperparameters()
         self.best_val_loss = None
@@ -27,6 +27,7 @@ class EncoderCoAtNet(pl.LightningModule):
             torch.save(self.model, utils.ROOT_PATH + self.weights_path + '.pt')
         
     def forward(self, x):
+        print(x.shape)
         x = self.model(x)
         return x
 
@@ -39,7 +40,7 @@ class EncoderCoAtNet(pl.LightningModule):
         return x1
 
     def save_model(self):
-        torch.save(self.model, utils.ROOT_PATH + '/weights/EncoderCoAtNet.pt')
+        torch.save(self.model, utils.ROOT_PATH + '/weights/EncoderCoAtNetx64.pt')
         '''self.to_onnx(utils.ROOT_PATH + self.weights_path +"_onnx.onnx", self.example_input_array, 
                         export_params=True,  opset_version=12, dtype=torch.float32, 
                         do_constant_folding=True, input_names=['input'], output_names=['output'], 
@@ -73,6 +74,6 @@ class EncoderCoAtNet(pl.LightningModule):
                 f.write(engine.serialize()) 
     
 if __name__ == '__main__':
-    model = EncoderCoAtNet('/weights/EncoderCoAtNet')
+    model = EncoderCoAtNetx64('/weights/EncoderCoAtNetx64')
     print(model.count_parameters())
     model.finalize()

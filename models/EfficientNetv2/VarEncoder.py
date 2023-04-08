@@ -19,14 +19,15 @@ import onnx
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.EfficientNetv2.EncoderCoAtNet import EncoderCoAtNet
 from models.EfficientNetv2.SwimTransformer import EncoderSwimTransformer
+from models.EfficientNetv2.EncoderCoAtNetx64 import EncoderCoAtNetx64
 
 class EfficientnetV2VarEncoder(pl.LightningModule):
     def __init__(self):
         super(EfficientnetV2VarEncoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2VE'
-        self.encoder = EncoderSwimTransformer()
+        self.encoder = EncoderCoAtNetx64()
         self.latent_dim = 1024
-        self.example_input_array = torch.rand(1, 3, 224, 224)
+        self.example_input_array = torch.rand(1, 3, 64, 64)
         self.example_output_array = torch.rand(1, 1024)
         self.save_hyperparameters()
         self.fc_mu = nn.Linear(1024, self.latent_dim)
@@ -83,7 +84,7 @@ class EfficientnetV2VarEncoder(pl.LightningModule):
            
             config.max_workspace_size = 4*1024*1024*1024            
 
-            network.get_input(0).shape = [1, 3, 224, 224]
+            network.get_input(0).shape = self.example_input_array.shape
             engine = builder.build_serialized_network(network, config)
             engine = builder.build_engine(network, config)
             with open(self.file_path+'.trt', 'wb') as f:

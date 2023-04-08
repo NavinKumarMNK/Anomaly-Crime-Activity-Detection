@@ -22,7 +22,7 @@ class EfficientNetv2Encoder(pl.LightningModule):
     def __init__(self):
         super(EfficientNetv2Encoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2Encoder'
-        self.example_input_array = torch.rand(1, 3, 224, 224)
+        self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1024)
         self.save_hyperparameters()
         try:
@@ -86,7 +86,7 @@ class EfficientNetv2Encoder(pl.LightningModule):
             config = builder.create_builder_config()
             config.set_flag(trt.BuilderFlag.FP16)
 
-            network.get_input(0).shape = [1, 3, 224, 224]
+            network.get_input(0).shape = [1, 3, 256, 256]
             engine = builder.build_serialized_network(network, config)
             engine = builder.build_engine(network, config)
             with open(self.file_path+'.trt', 'wb') as f:

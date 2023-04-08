@@ -16,7 +16,7 @@ import pytorch_lightning as pl
 from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.EfficientNetv2.Decoder import EfficientNetv2Decoder
 import ray_lightning as rl
-from models.EfficientNetv2.AutoEncoderAnomalyDataset import AnomalyDataModule as AutoEncoderDataModule
+from models.EfficientNetv2.AutoEncoderDataset import AutoEncoderDataModule
 from pytorch_lightning import Callback
 import time
 from pytorch_lightning import Trainer
