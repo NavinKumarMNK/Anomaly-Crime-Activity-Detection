@@ -27,7 +27,6 @@ class EncoderCoAtNetx64(pl.LightningModule):
             torch.save(self.model, utils.ROOT_PATH + self.weights_path + '.pt')
         
     def forward(self, x):
-        print(x.shape)
         x = self.model(x)
         return x
 

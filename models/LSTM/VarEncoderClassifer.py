@@ -69,12 +69,11 @@ class VariationalAutoEncoder(pl.LightningModule):
         log_loss = nn.CrossEntropyLoss()(y_pred, y_real)
 
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-
-        print(log_loss, KLD.mean())
-
+        
         if self.beta > 1:
             self.beta = 1
         
+        self.log('beta', self.beta)
         self.log('log_loss', log_loss)
         self.log('KLD', KLD.mean())
         total_loss = log_loss + self.beta * KLD.mean() 
@@ -84,7 +83,6 @@ class VariationalAutoEncoder(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         self.beta += 0.0001
-
         x = x.view(x.size(1), x.size(2), x.size(3), x.size(4))
         y = y.unsqueeze(1).view(y.size(1)).long()
         x, mu, log_var = self(x)
@@ -103,8 +101,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4))
-        y = y.unsqueeze(1).view(y.size(1)).long()
+        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('val_loss', loss)
@@ -130,8 +128,8 @@ class VariationalAutoEncoder(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4))
-        y = y.unsqueeze(1).view(y.size(1)).long()
+        x = x.view(x.size(1), x.size(2), x.size(3), x.size(4)).half()
+        y = y.view(y.size(1), y.size(2), y.size(3), y.size(4)).half()
         x_hat, mu, log_var = self(x)
         loss = self.loss_function(x_hat, y, mu, log_var)
         self.log('test_loss', loss)

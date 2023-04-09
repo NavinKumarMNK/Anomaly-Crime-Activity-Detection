@@ -26,8 +26,7 @@ class AnomalyCrimeDataset(Dataset):
 
         self.preprocessing = ImagePreProcessing()
         if sample_rate == -1:
-            self.sample_rate = np.random.randint(1, 10)
-        self.global_sample_rate = self.sample_rate = sample_rate
+            self.sample_rate = np.random.randint(4, 7)
         self.index = 0
         
     def __len__(self): 
@@ -35,7 +34,7 @@ class AnomalyCrimeDataset(Dataset):
     
     def __getitem__(self, idx):
         while True:
-            self.sample_rate = np.random.randint(1, 10)
+            self.sample_rate = np.random.randint(4, 7)
             try:
                 annotation = self.annotation[idx]
                 lst = annotation.split('  ')
@@ -43,7 +42,6 @@ class AnomalyCrimeDataset(Dataset):
 
                 label = utils.label_parser(lst[1])
                 video = cv2.VideoCapture(video_path)
-                print(video_path, label)
                 if not (video.isOpened() and video.get(cv2.CAP_PROP_FRAME_COUNT) > 0):
                     raise VideoNotOpened("Video is not opened or frame count is 0")
 
@@ -71,7 +69,6 @@ class AnomalyCrimeDataset(Dataset):
                 
                 end = start + self.batch_size * self.sample_rate
                 count = 0             
-                
                 for i in range(start, end, self.sample_rate):
                     video.set(1, i)
                     ret, frame = video.read()
@@ -81,9 +78,17 @@ class AnomalyCrimeDataset(Dataset):
                         frame = self.preprocessing.preprocess(frame)
                         frames.append(frame)
                         count += 1
-                    if count > self.batch_size:
+                    if count >= self.batch_size:
                         break
-                break
+                video.release()
+                X = torch.stack(frames)
+                if (X.shape[0] < self.batch_size):
+                    X = torch.cat((X, X[0:self.batch_size - X.shape[0]]), dim=0)
+                    y = torch.tensor([y] * self.batch_size)
+                else:
+                    X = X[0:self.batch_size]
+                    y = torch.tensor([y] * X.shape[0])
+                break       
 
             except Exception as e:
                 if (idx >= len(self.annotation)):
@@ -91,10 +96,7 @@ class AnomalyCrimeDataset(Dataset):
                 print(e)
                 idx += 1
                 continue
-        video.release()
-        X = torch.stack(frames)
-        # add y self.batch_size times
-        y = torch.tensor([y] * self.batch_size)
+
         return X, y
         
 class AnomalyCrimeDataModule(pl.LightningDataModule):
@@ -126,28 +128,6 @@ class AnomalyCrimeDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=1, 
                           num_workers=self.num_workers, shuffle=False)
-
-    def collate_fn(self, batch):
-        max_length = 1000
-        
-        # Pad or truncate the sequences to the maximum length
-        padded_seqs = []
-        for item in batch:
-            seq = item[0]
-            if len(seq) < max_length:
-                # Pad the sequence with zeros to the maximum length
-                padded_seq = torch.cat([seq, torch.zeros(max_length - len(seq), dtype=torch.int64)])
-            else:
-                # Truncate the sequence to the maximum length
-                padded_seq = seq[:max_length]
-            padded_seqs.append(padded_seq)
-        padded_seqs = torch.stack(padded_seqs)
-        
-        # Get the labels for the sequences
-        labels = torch.tensor([item[1] for item in batch])
-        
-        return padded_seqs, labels
-
 
 
 if __name__ == '__main__':

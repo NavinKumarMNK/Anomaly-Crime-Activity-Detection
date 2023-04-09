@@ -17,8 +17,8 @@ from models.EfficientNetv2.Encoder import EfficientNetv2Encoder as Encoder
 
 # Decoder model
 class LSTMDecoder(pl.LightningModule):
-    def __init__(self, encoder_output_size:int=1024, hidden_size:int=768, 
-                    num_layers:int=3, num_classes:int=14, is_train:bool=True) -> None:
+    def __init__(self, encoder_output_size:int=1024, hidden_size:int=1024, 
+                    num_layers:int=4, num_classes:int=14, is_train:bool=True) -> None:
         super().__init__()
         self.file_path = utils.ROOT_PATH + '/weights/LSTMDecoder'
         self.hidden_size = hidden_size
@@ -28,11 +28,25 @@ class LSTMDecoder(pl.LightningModule):
         self.example_input_array = torch.rand(1, 1, self.encoder_output_size)
         self.example_output_array = torch.rand(1, num_classes)
         self.lstm = nn.LSTM(input_size=self.encoder_output_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc1 = nn.Linear(hidden_size, 256)
-        self.fc2 = nn.Linear(256, 64) 
-        self.fc3 = nn.Linear(64, num_classes)
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(hidden_size, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(64, num_classes)
+        )
+            
         self.save_hyperparameters()
         self.hidden = None
         try:
@@ -63,14 +77,7 @@ class LSTMDecoder(pl.LightningModule):
 
         self.h, self.c = self.hidden 
         out, (self.h, self.c) = self.lstm(x, (self.h, self.c))
-        out = self.fc3(
-            self.relu(
-            self.fc2(
-            self.relu(
-            self.fc1(
-            self.relu(
-            self.fc(out[:, -1, :]
-            ))))))) # only use the last timestep
+        out = self.classifier(out[:, -1, :]) # get the last output
         return out
         
         

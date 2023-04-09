@@ -19,7 +19,6 @@ from models.EfficientNetv2.VarEncoder import Efficientnetv2VarEncoder
 from models.LSTM.Decoder import LSTMDecoder
 import ray_lightning as rl
 from models.LSTM.LSTMDataset import LSTMDatasetModule
-from models.LSTM.AnomalyCrimeDataset import CrimeDataModule
 
 class EncoderDecoder(pl.LightningModule):
     def __init__(self, 
@@ -43,12 +42,8 @@ class EncoderDecoder(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x.squeeze(0))
-        print(y_hat)
-        print(y_hat, y) 
-        
+        y_hat = self(x.squeeze(0))        
         loss = nn.CrossEntropyLoss()(y_hat, y)
-       
         self.log('train_loss', loss)
         return {"loss" : loss}
 
@@ -99,7 +94,7 @@ class EncoderDecoder(pl.LightningModule):
         return {"test_loss": loss, "y_hat": y_hat, "y": y}
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.00001)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
         return {
             'optimizer': optimizer,
@@ -121,8 +116,8 @@ if __name__ == '__main__' :
     
     #ray.init(runtime_env={"working_dir": utils.ROOT_PATH})
     
-    dataset_params = utils.config_parse('CRIME_DATASET')    
-    dataset = CrimeDataModule(**dataset_params)
+    dataset_params = utils.config_parse('LSTM_DATASET')    
+    dataset = LSTMDatasetModule(**dataset_params)
     dataset.setup()
     print(len(dataset.full_dataset))
 

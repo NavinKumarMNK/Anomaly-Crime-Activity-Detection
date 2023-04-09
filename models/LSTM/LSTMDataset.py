@@ -15,7 +15,8 @@ from utils.preprocessing import ImagePreProcessing
 class LSTMDataset(Dataset):
     def __init__(self, annotation:str,
                         data_dir_path:str, num_workers:int,
-                        sample_rate:int
+                        sample_rate:int,
+                        batch_size:int
                         ):
         super(LSTMDataset, self).__init__() 
         self.data_path = utils.DATA_PATH + data_dir_path 
@@ -23,6 +24,7 @@ class LSTMDataset(Dataset):
         self.num_workers = num_workers
         self.preprocessing = ImagePreProcessing()
         self.global_sample_rate = self.sample_rate = sample_rate
+        self.batch_size = batch_size
 
     def __len__(self):
         return len(self.annotation)
@@ -31,15 +33,12 @@ class LSTMDataset(Dataset):
         while True:
             self.sample_rate = self.global_sample_rate
             try:
-                annotation = self.annotation[idx]
+                annotation = self.annotation[index]
                 lst = annotation.split('  ')
                 video_path = self.data_path + lst[1]  + '/' + lst[0]
-                
-                print(annotation)
-
+        
                 label = utils.label_parser(lst[1])
                 video = cv2.VideoCapture(video_path)
-                print(video_path, label)
                 if not (video.isOpened() and video.get(cv2.CAP_PROP_FRAME_COUNT) > 0):
                     raise VideoNotOpened("Video is not opened or frame count is 0")
 
@@ -83,38 +82,36 @@ class LSTMDataset(Dataset):
                 video.release()
                 X = torch.stack(frames)
                 y = torch.tensor(label)
-                print(X.shape)
-                print(y)
                 break
 
             except Exception as e:
-                if (idx >= len(self.annotation)):
-                    idx = 0
+                if (index >= len(self.annotation)):
+                    index = 0
                 print(e)
-                idx += 1
+                index += 1
                 continue
-
-        print(X.shape, y)
         return X, y 
     
 class LSTMDatasetModule(pl.LightningDataModule):
     def __init__(self, num_workers:int,
-                    data_path, annotation, sample_rate) -> None:
+                    data_path, annotation, sample_rate, batch_size) -> None:
         super(LSTMDatasetModule, self).__init__()
         self.annotation = annotation
         self.num_workers = int(num_workers)
         self.data_path = data_path
         self.sample_rate = sample_rate
+        self.batch_size = batch_size
 
     def setup(self, stage=None):
-        self.dataset = LSTMDataset(num_workers=self.num_workers,
+        self.full_dataset = LSTMDataset(num_workers=self.num_workers,
                                            data_dir_path=self.data_path, annotation=self.annotation,
-                                           sample_rate=self.sample_rate)
-        train_size = int(0.8 * len(self.dataset))
-        val_size = int(0.1 * len(self.dataset))
-        test_size = len(self.dataset) - train_size - val_size
+                                           sample_rate=self.sample_rate,
+                                           batch_size=self.batch_size)
+        train_size = int(0.8 * len(self.full_dataset))
+        val_size = int(0.1 * len(self.full_dataset))
+        test_size = len(self.full_dataset) - train_size - val_size
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(
-            self.dataset, [train_size, val_size, test_size])
+            self.full_dataset, [train_size, val_size, test_size])
         
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=1, num_workers=self.num_workers, shuffle=True)

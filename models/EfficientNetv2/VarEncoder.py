@@ -16,16 +16,16 @@ import wandb
 import torch.nn as nn
 import tensorrt as trt
 import onnx
-from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
+#from models.EfficientNetv2.Encoder import EfficientNetv2Encoder
 from models.EfficientNetv2.EncoderCoAtNet import EncoderCoAtNet
 #from models.EfficientNetv2.SwimTransformer import EncoderSwimTransformer
-from models.EfficientNetv2.EncoderCoAtNetx64 import EncoderCoAtNetx64
+#from models.EfficientNetv2.EncoderCoAtNetx64 import EncoderCoAtNetx64
 
 class Efficientnetv2VarEncoder(pl.LightningModule):
     def __init__(self):
         super(Efficientnetv2VarEncoder, self).__init__()
         self.file_path = utils.ROOT_PATH + '/weights/EfficientNetv2VE'
-        self.encoder = EncoderCoAtNetx64()
+        self.encoder = EncoderCoAtNet()
         self.latent_dim = 1024
         self.example_input_array = torch.rand(1, 3, 256, 256)
         self.example_output_array = torch.rand(1, 1024)
